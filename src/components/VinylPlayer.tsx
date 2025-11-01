@@ -16,7 +16,7 @@ interface VinylPlayerProps {
 
 // Centralized configuration for all visual elements
 const DEFAULT_CONFIG = {
-  configVersion: 4,
+  configVersion: 5,
   base: {
     aspectRatio: 1.18, // Updated after image loads
   },
@@ -28,8 +28,8 @@ const DEFAULT_CONFIG = {
   tonearm: {
     rightPct: 18.0,
     topPct: 10.1,
-    widthPct: 23.0,
-    heightPct: 35.0,
+    widthPct: 17.1,
+    lengthScale: 1.20,
     pivotXPct: 87.9,
     pivotYPct: 9.8,
   },
@@ -40,7 +40,7 @@ const DEFAULT_CONFIG = {
   },
 };
 
-const STORAGE_KEY = 'vinyl-player-config-v4';
+const STORAGE_KEY = 'vinyl-player-config-v5';
 
 const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -133,13 +133,13 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
         case '[':
           e.preventDefault();
           if (adjustTarget === 'platter') updated.platter.sizePct = Math.max(1, updated.platter.sizePct - step);
-          if (adjustTarget === 'tonearm') updated.tonearm.heightPct = Math.max(1, updated.tonearm.heightPct - step);
+          if (adjustTarget === 'tonearm') updated.tonearm.lengthScale = Math.max(0.5, updated.tonearm.lengthScale - 0.05);
           if (adjustTarget === 'angles') updated.angles.END -= step;
           break;
         case ']':
           e.preventDefault();
           if (adjustTarget === 'platter') updated.platter.sizePct = Math.min(100, updated.platter.sizePct + step);
-          if (adjustTarget === 'tonearm') updated.tonearm.heightPct = Math.min(100, updated.tonearm.heightPct + step);
+          if (adjustTarget === 'tonearm') updated.tonearm.lengthScale = Math.min(2.0, updated.tonearm.lengthScale + 0.05);
           if (adjustTarget === 'angles') updated.angles.END += step;
           break;
         case '-':
@@ -371,7 +371,6 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
               right: `${config.tonearm.rightPct}%`,
               top: `${config.tonearm.topPct}%`,
               width: `${config.tonearm.widthPct}%`,
-              height: `${config.tonearm.heightPct}%`,
               transformOrigin: `${config.tonearm.pivotXPct}% ${config.tonearm.pivotYPct}%`,
               transform: `rotate(${tonearmRotation}deg)`,
               zIndex: 3,
@@ -380,7 +379,11 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
             <img
               src="/images/tonearm-animated.png"
               alt="Tonearm"
-              className="w-full h-full object-contain drop-shadow-2xl"
+              className="w-full h-auto object-contain drop-shadow-2xl"
+              style={{
+                transform: `scaleY(${config.tonearm.lengthScale})`,
+                transformOrigin: `${config.tonearm.pivotXPct}% ${config.tonearm.pivotYPct}%`,
+              }}
             />
           </div>
 
@@ -431,7 +434,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
                     Platter: L:{config.platter.leftPct.toFixed(1)}% T:{config.platter.topPct.toFixed(1)}% Size:{config.platter.sizePct.toFixed(1)}%
                   </div>
                   <div className={adjustTarget === 'tonearm' ? 'text-yellow-400 font-bold' : ''}>
-                    Tonearm: R:{config.tonearm.rightPct.toFixed(1)}% T:{config.tonearm.topPct.toFixed(1)}% W:{config.tonearm.widthPct.toFixed(1)}% H:{config.tonearm.heightPct.toFixed(1)}%
+                    Tonearm: R:{config.tonearm.rightPct.toFixed(1)}% T:{config.tonearm.topPct.toFixed(1)}% W:{config.tonearm.widthPct.toFixed(1)}% Len:{config.tonearm.lengthScale.toFixed(2)}
                   </div>
                   <div className={adjustTarget === 'pivot' ? 'text-yellow-400 font-bold' : ''}>
                     Pivot: X:{config.tonearm.pivotXPct.toFixed(1)}% Y:{config.tonearm.pivotYPct.toFixed(1)}%
@@ -444,7 +447,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
                 <div className="mb-3 text-[10px] space-y-1 text-gray-300">
                   <div>Tab: Switch target ({adjustTarget})</div>
                   <div>Arrows: Move/Adjust (Shift=1.0, Alt=0.02)</div>
-                  <div>[ ]: Tonearm Height/Size/END angle</div>
+                  <div>[ ]: Tonearm Length/Size/END angle</div>
                   <div>+/-: Tonearm Width</div>
                   <div>ESC: Exit calibration</div>
                 </div>

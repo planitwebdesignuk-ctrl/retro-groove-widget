@@ -76,7 +76,7 @@
     }
 
     .vinyl.spinning {
-      animation: spin 7.2s linear infinite;
+      animation: spin 8s linear infinite;
     }
 
     @keyframes spin {
@@ -588,7 +588,7 @@
   <script>
     // ============ CONFIGURATION ============
     const DEFAULT_CONFIG = {
-      configVersion: 4,
+      configVersion: 5,
       platter: {
         leftPct: 12.9,
         topPct: 10.7,
@@ -597,8 +597,8 @@
       tonearm: {
         rightPct: 18.0,
         topPct: 10.1,
-        widthPct: 23.0,
-        heightPct: 35.0,
+        widthPct: 17.1,
+        lengthScale: 1.20,
         pivotXPct: 87.9,
         pivotYPct: 9.8,
       },
@@ -609,7 +609,7 @@
       },
     };
 
-    const STORAGE_KEY = 'vinyl-player-config-v4';
+    const STORAGE_KEY = 'vinyl-player-config-v5';
 
     // Load CONFIG from localStorage or use defaults
     let CONFIG = (() => {
@@ -833,14 +833,14 @@
         case '[':
           e.preventDefault();
           if (adjustTarget === 'platter') CONFIG.platter.sizePct = Math.max(1, CONFIG.platter.sizePct - step);
-          if (adjustTarget === 'tonearm') CONFIG.tonearm.heightPct = Math.max(1, CONFIG.tonearm.heightPct - step);
+          if (adjustTarget === 'tonearm') CONFIG.tonearm.lengthScale = Math.max(0.5, CONFIG.tonearm.lengthScale - 0.05);
           if (adjustTarget === 'angles') CONFIG.angles.END -= step;
           saveAndUpdateConfig();
           break;
         case ']':
           e.preventDefault();
           if (adjustTarget === 'platter') CONFIG.platter.sizePct = Math.min(100, CONFIG.platter.sizePct + step);
-          if (adjustTarget === 'tonearm') CONFIG.tonearm.heightPct = Math.max(1, CONFIG.tonearm.heightPct + step);
+          if (adjustTarget === 'tonearm') CONFIG.tonearm.lengthScale = Math.min(2.0, CONFIG.tonearm.lengthScale + 0.05);
           if (adjustTarget === 'angles') CONFIG.angles.END += step;
           saveAndUpdateConfig();
           break;
@@ -876,8 +876,14 @@
       tonearm.style.right = `${CONFIG.tonearm.rightPct}%`;
       tonearm.style.top = `${CONFIG.tonearm.topPct}%`;
       tonearm.style.width = `${CONFIG.tonearm.widthPct}%`;
-      tonearm.style.height = `${CONFIG.tonearm.heightPct}%`;
+      tonearm.style.height = 'auto';
       tonearm.style.transformOrigin = `${CONFIG.tonearm.pivotXPct}% ${CONFIG.tonearm.pivotYPct}%`;
+      
+      const tonearmImg = tonearm.querySelector('img');
+      if (tonearmImg) {
+        tonearmImg.style.transform = `scaleY(${CONFIG.tonearm.lengthScale})`;
+        tonearmImg.style.transformOrigin = `${CONFIG.tonearm.pivotXPct}% ${CONFIG.tonearm.pivotYPct}%`;
+      }
       
       updateTonearm(audio.currentTime / audio.duration * 100 || 0);
 
@@ -902,7 +908,7 @@
       document.getElementById('platterInfo').textContent = 
         `Platter: L:${CONFIG.platter.leftPct.toFixed(1)}% T:${CONFIG.platter.topPct.toFixed(1)}% Size:${CONFIG.platter.sizePct.toFixed(1)}%`;
       document.getElementById('tonearmInfo').textContent = 
-        `Tonearm: R:${CONFIG.tonearm.rightPct.toFixed(1)}% T:${CONFIG.tonearm.topPct.toFixed(1)}% W:${CONFIG.tonearm.widthPct.toFixed(1)}% H:${CONFIG.tonearm.heightPct.toFixed(1)}%`;
+        `Tonearm: R:${CONFIG.tonearm.rightPct.toFixed(1)}% T:${CONFIG.tonearm.topPct.toFixed(1)}% W:${CONFIG.tonearm.widthPct.toFixed(1)}% Len:${CONFIG.tonearm.lengthScale.toFixed(2)}`;
       document.getElementById('pivotInfo').textContent = 
         `Pivot: X:${CONFIG.tonearm.pivotXPct.toFixed(1)}% Y:${CONFIG.tonearm.pivotYPct.toFixed(1)}%`;
       document.getElementById('anglesInfo').textContent = 
