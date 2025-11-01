@@ -1,4 +1,4 @@
-import jsmediatags from 'jsmediatags';
+import { parseBlob } from 'music-metadata-browser';
 
 export interface Mp3Metadata {
   title: string;
@@ -9,28 +9,23 @@ export interface Mp3Metadata {
  * Extract metadata from MP3 file using ID3 tags or filename fallback
  */
 export async function extractMp3Metadata(file: File): Promise<Mp3Metadata> {
-  return new Promise((resolve) => {
-    jsmediatags.read(file, {
-      onSuccess: (tag) => {
-        const tags = tag.tags;
-        const title = tags.title || parseFilename(file.name).title;
-        const artist = tags.artist || parseFilename(file.name).artist;
-        
-        resolve({
-          title: title || file.name.replace('.mp3', ''),
-          artist: artist || 'Unknown Artist'
-        });
-      },
-      onError: () => {
-        // Fallback to filename parsing if ID3 tags fail
-        const parsed = parseFilename(file.name);
-        resolve({
-          title: parsed.title || file.name.replace('.mp3', ''),
-          artist: parsed.artist || 'Unknown Artist'
-        });
-      }
-    });
-  });
+  try {
+    const metadata = await parseBlob(file);
+    const title = metadata.common.title || parseFilename(file.name).title;
+    const artist = metadata.common.artist || parseFilename(file.name).artist;
+    
+    return {
+      title: title || file.name.replace('.mp3', ''),
+      artist: artist || 'Unknown Artist'
+    };
+  } catch (error) {
+    // Fallback to filename parsing if metadata extraction fails
+    const parsed = parseFilename(file.name);
+    return {
+      title: parsed.title || file.name.replace('.mp3', ''),
+      artist: parsed.artist || 'Unknown Artist'
+    };
+  }
 }
 
 /**
