@@ -97,13 +97,15 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     });
   }, [durationsReady, trackDurations, tracks.length]);
 
-  // Load actual track durations on mount
+  // Load actual track durations on mount and preload metadata
   useEffect(() => {
     const loadDurations = async () => {
       const durations = await Promise.all(
         tracks.map((track) => {
           return new Promise<number>((resolve) => {
-            const audio = new Audio(track.audioUrl);
+            const audio = new Audio();
+            audio.preload = 'metadata';
+            audio.src = track.audioUrl;
             audio.addEventListener('loadedmetadata', () => {
               resolve(audio.duration);
             });
@@ -281,7 +283,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     };
 
     if (isPlaying) {
-      audio.play();
+      // Progress tracking only - play() is called in handlePlay()
       animationRef.current = requestAnimationFrame(updateProgress);
     } else {
       audio.pause();
@@ -312,9 +314,13 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     setProgress(0);
     
     if (isPlaying) {
-      audio.play();
+      // Use promise-based play to ensure audio is ready
+      audio.play().catch((error) => {
+        console.error('Auto-play failed on track change:', error);
+        setIsPlaying(false);
+      });
     }
-  }, [currentTrackIndex, isPlaying]);
+  }, [currentTrackIndex]);
 
   const handlePlay = () => {
     const audio = audioRef.current;

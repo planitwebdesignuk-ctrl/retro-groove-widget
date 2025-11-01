@@ -644,11 +644,13 @@
     // Store actual track durations (loaded dynamically)
     let trackDurations = [];
 
-    // Load actual track durations
+    // Load actual track durations with metadata preloading
     function loadTrackDurations() {
       const promises = tracks.map((track, index) => {
         return new Promise((resolve) => {
-          const tempAudio = new Audio(track.url);
+          const tempAudio = new Audio();
+          tempAudio.preload = 'metadata';
+          tempAudio.src = track.url;
           tempAudio.addEventListener('loadedmetadata', () => {
             trackDurations[index] = tempAudio.duration;
             resolve();
@@ -659,10 +661,7 @@
           });
         });
       });
-
-      Promise.all(promises).then(() => {
-        console.log('Track durations loaded:', trackDurations);
-      });
+      return Promise.all(promises);
     }
 
     // Check if durations are ready
