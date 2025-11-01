@@ -16,7 +16,7 @@ interface VinylPlayerProps {
 
 // Centralized configuration for all visual elements
 const DEFAULT_CONFIG = {
-  configVersion: 5,
+  configVersion: 6,
   base: {
     aspectRatio: 1.18, // Updated after image loads
   },
@@ -40,11 +40,12 @@ const DEFAULT_CONFIG = {
   },
 };
 
-const STORAGE_KEY = 'vinyl-player-config-v5';
+const STORAGE_KEY = 'vinyl-player-config-v6';
 
 const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isStartingPlayback, setIsStartingPlayback] = useState(false);
+  const [snapTonearm, setSnapTonearm] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [calibrationMode, setCalibrationMode] = useState(false);
@@ -327,16 +328,22 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     const audio = audioRef.current;
     if (!audio) return;
     
-    // Set flag to ensure tonearm uses START position on first render
+    // Set flags to ensure tonearm snaps to START position instantly
+    setSnapTonearm(true);
     setIsStartingPlayback(true);
     
     const startPlayback = () => {
       audio.play()
         .then(() => {
           setIsPlaying(true);
+          // Remove snap after first render to restore smooth transition
+          requestAnimationFrame(() => {
+            setSnapTonearm(false);
+          });
         })
         .catch((error) => {
           console.error('Playback failed:', error);
+          setSnapTonearm(false);
           setIsStartingPlayback(false);
         });
     };
@@ -424,8 +431,8 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
       return config.angles.REST;
     }
     
-    // If we're just starting playback, use the track's start position
-    if (isStartingPlayback) {
+    // If snapping or just starting playback, use the track's start position
+    if (snapTonearm || isStartingPlayback) {
       if (currentTrackIndex === 0) {
         return config.angles.START; // 16.0°
       }
@@ -540,7 +547,10 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
 
           {/* Tonearm - animated using the standalone tonearm image */}
           <div
-            className="absolute transition-transform duration-700 ease-in-out"
+            className={cn(
+              "absolute",
+              snapTonearm ? "transition-none" : "transition-transform duration-700 ease-in-out"
+            )}
             style={{
               right: `${config.tonearm.rightPct}%`,
               top: `${config.tonearm.topPct}%`,
