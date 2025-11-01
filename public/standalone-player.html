@@ -76,7 +76,7 @@
     }
 
     .vinyl.spinning {
-      animation: spin 33s linear infinite;
+      animation: spin 50s linear infinite;
     }
 
     @keyframes spin {
@@ -728,25 +728,28 @@
     }
 
     function playTrack() {
-      // Wait for audio to be ready before starting animation
+      const startPlayback = () => {
+        audio.play()
+          .then(() => {
+            isPlaying = true;
+            vinyl.classList.add('spinning');
+            glow.classList.add('active');
+            playBtn.style.display = 'none';
+            stopBtn.style.display = 'block';
+            updateTonearm();
+          })
+          .catch((error) => {
+            console.error('Playback failed:', error);
+          });
+      };
+      
+      // Wait for audio to be ready before starting
       if (audio.readyState >= 3) { // HAVE_FUTURE_DATA or better
-        audio.play();
-        isPlaying = true;
-        vinyl.classList.add('spinning');
-        glow.classList.add('active');
-        playBtn.style.display = 'none';
-        stopBtn.style.display = 'block';
-        updateTonearm();
+        startPlayback();
       } else {
         const handleCanPlay = () => {
-          audio.play();
-          isPlaying = true;
-          vinyl.classList.add('spinning');
-          glow.classList.add('active');
-          playBtn.style.display = 'none';
-          stopBtn.style.display = 'block';
-          updateTonearm();
           audio.removeEventListener('canplay', handleCanPlay);
+          startPlayback();
         };
         audio.addEventListener('canplay', handleCanPlay);
         audio.load(); // Ensure loading starts
@@ -815,18 +818,28 @@
       if (!isPlaying) {
         angle = CONFIG.angles.REST;
       } else {
-        // If at the very start of a track, use the track's start position
-        if (audio.currentTime < 0.1) {
-          // Track 0 should always start at START angle (25.6°)
+        // Safety check: ensure audio is ready with valid duration
+        if (!audio.duration || isNaN(audio.duration)) {
+          // If audio isn't ready but we're "playing", use track start position
           if (currentTrackIndex === 0) {
-            angle = CONFIG.angles.START;
+            angle = CONFIG.angles.START; // 16.0°
+          } else {
+            const fractions = computeTrackFractions();
+            const trackStart = fractions[currentTrackIndex]?.start || 0;
+            angle = CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * trackStart;
+          }
+        } else if (audio.currentTime < 0.1) {
+          // If at the very start of a track (within first 100ms), use the track's start position
+          // Track 0 should always start at START angle (16.0°)
+          if (currentTrackIndex === 0) {
+            angle = CONFIG.angles.START; // 16.0°
           } else {
             const fractions = computeTrackFractions();
             const trackStart = fractions[currentTrackIndex]?.start || 0;
             angle = CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * trackStart;
           }
         } else {
-          // When playing, calculate position based on track progress
+          // During playback, calculate position based on track progress
           const globalFraction = getGlobalFraction();
           angle = CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * globalFraction;
         }

@@ -320,13 +320,23 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     const audio = audioRef.current;
     if (!audio) return;
     
-    // Wait for audio to be ready before starting animation
+    const startPlayback = () => {
+      audio.play()
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch((error) => {
+          console.error('Playback failed:', error);
+        });
+    };
+    
+    // Wait for audio to be ready before starting
     if (audio.readyState >= 3) { // HAVE_FUTURE_DATA or better
-      setIsPlaying(true);
+      startPlayback();
     } else {
       const handleCanPlay = () => {
-        setIsPlaying(true);
         audio.removeEventListener('canplay', handleCanPlay);
+        startPlayback();
       };
       audio.addEventListener('canplay', handleCanPlay);
       audio.load(); // Ensure loading starts
@@ -393,17 +403,27 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
       return config.angles.REST;
     }
     
-    // If at the very start of a track, use the track's start position
-    if (audio && audio.currentTime < 0.1) {
-      // Track 0 should always start at START angle (25.6°)
+    // Safety check: ensure audio is ready with valid duration
+    if (!audio || !audio.duration || isNaN(audio.duration)) {
+      // If audio isn't ready but we're "playing", use track start position
       if (currentTrackIndex === 0) {
-        return config.angles.START;
+        return config.angles.START; // 16.0°
       }
       const trackStart = trackFractions[currentTrackIndex]?.start || 0;
       return config.angles.START + (config.angles.END - config.angles.START) * trackStart;
     }
     
-    // When playing, calculate position based on track progress
+    // If at the very start of a track (within first 100ms), use the track's start position
+    if (audio.currentTime < 0.1) {
+      // Track 0 should always start at START angle (16.0°)
+      if (currentTrackIndex === 0) {
+        return config.angles.START; // 16.0°
+      }
+      const trackStart = trackFractions[currentTrackIndex]?.start || 0;
+      return config.angles.START + (config.angles.END - config.angles.START) * trackStart;
+    }
+    
+    // During playback, calculate position based on track progress
     const globalFraction = getGlobalFraction();
     return config.angles.START + (config.angles.END - config.angles.START) * globalFraction;
   };
