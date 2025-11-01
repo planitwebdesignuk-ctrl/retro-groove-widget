@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Play, Pause, SkipBack, SkipForward, Upload, Copy, RotateCcw } from "lucide-react";
+import { Play, Square, SkipBack, SkipForward, Upload, Copy, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -266,14 +266,14 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     };
 
     const handleEnded = () => {
-      // Auto-advance to next track
+      // Auto-advance to next track, wrapping to track 1 at end
       if (currentTrackIndex < tracks.length - 1) {
         setCurrentTrackIndex(currentTrackIndex + 1);
       } else {
-        // Reached end of playlist
-        setIsPlaying(false);
-        setProgress(0);
+        // Wrap back to first track
+        setCurrentTrackIndex(0);
       }
+      // Keep playing
     };
 
     const handleLoadedMetadata = () => {
@@ -316,19 +316,40 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     }
   }, [currentTrackIndex, isPlaying]);
 
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
+  const handlePlay = () => {
+    setIsPlaying(true);
+  };
+
+  const handleStop = () => {
+    setIsPlaying(false);
+    const audio = audioRef.current;
+    if (audio) {
+      audio.currentTime = 0;
+      setProgress(0);
+    }
   };
 
   const handlePrevious = () => {
+    setIsPlaying(false);
     if (currentTrackIndex > 0) {
       setCurrentTrackIndex(currentTrackIndex - 1);
+    } else {
+      // Stay at track 0, just reset position
+      const audio = audioRef.current;
+      if (audio) {
+        audio.currentTime = 0;
+        setProgress(0);
+      }
     }
   };
 
   const handleNext = () => {
+    setIsPlaying(false);
     if (currentTrackIndex < tracks.length - 1) {
       setCurrentTrackIndex(currentTrackIndex + 1);
+    } else {
+      // Wrap to first track
+      setCurrentTrackIndex(0);
     }
   };
 
@@ -346,10 +367,12 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const getTonearmRotation = () => {
     const globalFraction = getGlobalFraction();
     
-    if (!isPlaying && globalFraction === 0) {
+    // When not playing, tonearm returns to REST position
+    if (!isPlaying) {
       return config.angles.REST;
     }
     
+    // When playing, calculate position based on track progress
     return config.angles.START + (config.angles.END - config.angles.START) * globalFraction;
   };
 
@@ -615,31 +638,36 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
               variant="secondary"
               size="icon"
               onClick={handlePrevious}
-              disabled={currentTrackIndex === 0}
               className="h-12 w-12 rounded-full"
               aria-label="Previous track"
             >
               <SkipBack className="h-5 w-5" />
             </Button>
 
-            <Button
-              size="icon"
-              onClick={handlePlayPause}
-              className="h-16 w-16 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
-              aria-label={isPlaying ? "Pause" : "Play"}
-            >
-              {isPlaying ? (
-                <Pause className="h-7 w-7" />
-              ) : (
+            {!isPlaying ? (
+              <Button
+                size="icon"
+                onClick={handlePlay}
+                className="h-16 w-16 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                aria-label="Play"
+              >
                 <Play className="h-7 w-7 translate-x-0.5" />
-              )}
-            </Button>
+              </Button>
+            ) : (
+              <Button
+                size="icon"
+                onClick={handleStop}
+                className="h-16 w-16 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                aria-label="Stop"
+              >
+                <Square className="h-7 w-7" />
+              </Button>
+            )}
 
             <Button
               variant="secondary"
               size="icon"
               onClick={handleNext}
-              disabled={currentTrackIndex === tracks.length - 1}
               className="h-12 w-12 rounded-full"
               aria-label="Next track"
             >
@@ -685,7 +713,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
 
         {/* Hidden Audio Element */}
         <audio ref={audioRef} preload="metadata">
-          <source src={currentTrack.audioUrl} type="audio/mpeg" />
+          <source src={currentTrack?.audioUrl || ''} type="audio/mpeg" />
           Your browser does not support the audio element.
         </audio>
       </div>

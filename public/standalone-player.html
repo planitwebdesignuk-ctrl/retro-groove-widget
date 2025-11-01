@@ -518,9 +518,15 @@
           </svg>
         </button>
         
-        <button class="large" id="playBtn" title="Play">
+        <button class="large" id="playBtn" title="Play" style="display: block;">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
             <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+        </button>
+        
+        <button class="large" id="stopBtn" title="Stop" style="display: none;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="6" width="12" height="12"></rect>
           </svg>
         </button>
         
@@ -697,6 +703,7 @@
     const tonearm = document.getElementById('tonearm');
     const glow = document.getElementById('glow');
     const playBtn = document.getElementById('playBtn');
+    const stopBtn = document.getElementById('stopBtn');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     const trackTitle = document.getElementById('trackTitle');
@@ -720,37 +727,60 @@
       updateTonearm();
     }
 
-    function togglePlay() {
-      if (isPlaying) {
-        audio.pause();
-        isPlaying = false;
-        vinyl.classList.remove('spinning');
-        glow.classList.remove('active');
-        playBtn.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
-        updateTonearm();
-      } else {
-        audio.play();
-        isPlaying = true;
-        vinyl.classList.add('spinning');
-        glow.classList.add('active');
-        playBtn.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>';
-      }
+    function playTrack() {
+      audio.play();
+      isPlaying = true;
+      vinyl.classList.add('spinning');
+      glow.classList.add('active');
+      playBtn.style.display = 'none';
+      stopBtn.style.display = 'block';
+      updateTonearm();
+    }
+
+    function stopTrack() {
+      audio.pause();
+      audio.currentTime = 0;
+      progressFill.style.width = '0%';
+      isPlaying = false;
+      vinyl.classList.remove('spinning');
+      glow.classList.remove('active');
+      playBtn.style.display = 'block';
+      stopBtn.style.display = 'none';
+      updateTonearm();
     }
 
     function prevTrack() {
+      isPlaying = false;
+      vinyl.classList.remove('spinning');
+      glow.classList.remove('active');
+      playBtn.style.display = 'block';
+      stopBtn.style.display = 'none';
+      
       if (currentTrackIndex > 0) {
         currentTrackIndex--;
         loadTrack(currentTrackIndex);
-        if (isPlaying) audio.play();
+      } else {
+        // Stay at track 0, just reset position
+        audio.currentTime = 0;
+        progressFill.style.width = '0%';
+        updateTonearm();
       }
     }
 
     function nextTrack() {
+      isPlaying = false;
+      vinyl.classList.remove('spinning');
+      glow.classList.remove('active');
+      playBtn.style.display = 'block';
+      stopBtn.style.display = 'none';
+      
       if (currentTrackIndex < tracks.length - 1) {
         currentTrackIndex++;
-        loadTrack(currentTrackIndex);
-        if (isPlaying) audio.play();
+      } else {
+        // Wrap to first track
+        currentTrackIndex = 0;
       }
+      loadTrack(currentTrackIndex);
     }
 
     // Calculate global fraction based on current track segment
@@ -766,9 +796,11 @@
       const globalFraction = getGlobalFraction();
       let angle;
       
-      if (!isPlaying && globalFraction === 0) {
+      // When not playing, tonearm returns to REST position
+      if (!isPlaying) {
         angle = CONFIG.angles.REST;
       } else {
+        // When playing, calculate position based on track progress
         angle = CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * globalFraction;
       }
       tonearm.style.transform = `rotate(${angle}deg)`;
@@ -783,8 +815,7 @@
     }
 
     function updateButtons() {
-      prevBtn.disabled = currentTrackIndex === 0;
-      nextBtn.disabled = currentTrackIndex === tracks.length - 1;
+      // Never disable buttons - they all work in any state
     }
 
     function updatePlaylist() {
@@ -811,30 +842,30 @@
     function selectTrack(index) {
       currentTrackIndex = index;
       loadTrack(index);
-      if (isPlaying) audio.play();
     }
 
     // Make selectTrack available globally
     window.selectTrack = selectTrack;
 
     // ============ EVENT LISTENERS ============
-    playBtn.addEventListener('click', togglePlay);
+    playBtn.addEventListener('click', playTrack);
+    stopBtn.addEventListener('click', stopTrack);
     prevBtn.addEventListener('click', prevTrack);
     nextBtn.addEventListener('click', nextTrack);
 
     audio.addEventListener('timeupdate', updateProgress);
     
     audio.addEventListener('ended', () => {
+      // Auto-advance to next track, wrapping to track 1 at end
       if (currentTrackIndex < tracks.length - 1) {
-        nextTrack();
+        currentTrackIndex++;
       } else {
-        isPlaying = false;
-        vinyl.classList.remove('spinning');
-        glow.classList.remove('active');
-        playBtn.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
-        // Return to rest position at end of playlist
-        tonearm.style.transform = `rotate(${CONFIG.angles.REST}deg)`;
+        // Wrap back to first track
+        currentTrackIndex = 0;
       }
+      loadTrack(currentTrackIndex);
+      // Keep playing
+      audio.play();
     });
 
     // Keyboard controls
@@ -845,7 +876,11 @@
       if (!calibrationMode) {
         if (e.code === 'Space') {
           e.preventDefault();
-          togglePlay();
+          if (isPlaying) {
+            stopTrack();
+          } else {
+            playTrack();
+          }
         } else if (e.code === 'ArrowLeft') {
           prevTrack();
         } else if (e.code === 'ArrowRight') {
