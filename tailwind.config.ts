@@ -80,10 +80,41 @@ export default {
             height: "0",
           },
         },
+        "spin-vinyl": {
+          from: {
+            transform: "rotate(0deg)",
+          },
+          to: {
+            transform: "rotate(360deg)",
+          },
+        },
+        "glow-pulse": {
+          "0%, 100%": {
+            opacity: "1",
+            filter: "drop-shadow(0 0 8px hsl(var(--vinyl-glow) / 0.6))",
+          },
+          "50%": {
+            opacity: "0.8",
+            filter: "drop-shadow(0 0 16px hsl(var(--vinyl-glow) / 0.8))",
+          },
+        },
+        "fade-in": {
+          from: {
+            opacity: "0",
+            transform: "translateY(10px)",
+          },
+          to: {
+            opacity: "1",
+            transform: "translateY(0)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "spin-vinyl": "spin-vinyl 2s linear infinite",
+        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
+        "fade-in": "fade-in 0.6s ease-out",
       },
     },
   },

@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vintage Vinyl Player - Standalone</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #1a1612 0%, #2d2418 100%);
+      color: #e8d7c3;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+      animation: fadeIn 0.8s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .turntable {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      background: url('/images/turntable-base.png') center/cover;
+      border-radius: 1.5rem;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+
+    .turntable::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(26, 22, 18, 0.3);
+      pointer-events: none;
+    }
+
+    .platter {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 45%;
+      height: 45%;
+      transform: translate(-50%, -50%);
+    }
+
+    .vinyl {
+      width: 100%;
+      height: 100%;
+      background: url('/images/vinyl-record.png') center/cover;
+      border-radius: 50%;
+      transition: transform 0.5s ease;
+    }
+
+    .vinyl.spinning {
+      animation: spin 2s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .spindle {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      background: #4a4a4a;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+      z-index: 10;
+    }
+
+    .tonearm {
+      position: absolute;
+      right: 15%;
+      top: 25%;
+      width: 35%;
+      height: 35%;
+      background: url('/images/tonearm.png') center/contain no-repeat;
+      transform-origin: top right;
+      transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+      z-index: 5;
+    }
+
+    .glow {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 48%;
+      height: 48%;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle, rgba(234, 88, 12, 0.2), transparent 70%);
+      border-radius: 50%;
+      opacity: 0;
+      transition: opacity 0.5s;
+      pointer-events: none;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .glow.active {
+      opacity: 1;
+    }
+
+    @keyframes pulse {
+      0%, 100% { 
+        opacity: 0.6;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      50% { 
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.05);
+      }
+    }
+
+    .controls {
+      margin-top: 2rem;
+      background: rgba(45, 36, 24, 0.8);
+      backdrop-filter: blur(10px);
+      border-radius: 1rem;
+      padding: 2rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .track-info {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .track-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+
+    .track-artist {
+      color: #a89075;
+      font-size: 0.9rem;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(168, 144, 117, 0.2);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #c77d3a, #ea580c);
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .buttons {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    button {
+      background: rgba(199, 125, 58, 0.2);
+      border: 2px solid #c77d3a;
+      color: #e8d7c3;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    button:hover:not(:disabled) {
+      background: rgba(199, 125, 58, 0.4);
+      transform: scale(1.05);
+    }
+
+    button:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    button.small {
+      width: 48px;
+      height: 48px;
+    }
+
+    button.large {
+      width: 64px;
+      height: 64px;
+      background: #c77d3a;
+      border-color: #ea580c;
+    }
+
+    button.large:hover:not(:disabled) {
+      background: #ea580c;
+    }
+
+    .playlist {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .track-item {
+      background: rgba(168, 144, 117, 0.1);
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      text-align: left;
+      width: 100%;
+    }
+
+    .track-item:hover {
+      background: rgba(168, 144, 117, 0.2);
+    }
+
+    .track-item.active {
+      background: rgba(199, 125, 58, 0.3);
+      border: 1px solid #c77d3a;
+    }
+
+    .track-number {
+      font-weight: bold;
+      opacity: 0.7;
+      min-width: 1.5rem;
+    }
+
+    .track-details {
+      flex: 1;
+    }
+
+    .track-details .title {
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
+    .track-details .artist {
+      font-size: 0.75rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+
+    .visualizer {
+      display: flex;
+      gap: 2px;
+      align-items: flex-end;
+    }
+
+    .visualizer span {
+      width: 3px;
+      height: 12px;
+      background: #c77d3a;
+      animation: wave 0.8s ease-in-out infinite;
+    }
+
+    .visualizer span:nth-child(2) { animation-delay: 0.1s; }
+    .visualizer span:nth-child(3) { animation-delay: 0.2s; }
+
+    @keyframes wave {
+      0%, 100% { height: 6px; }
+      50% { height: 16px; }
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 1rem;
+      }
+      .track-title {
+        font-size: 1.2rem;
+      }
+      button.large {
+        width: 56px;
+        height: 56px;
+      }
+      button.small {
+        width: 40px;
+        height: 40px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="turntable">
+      <div class="platter">
+        <div class="vinyl" id="vinyl"></div>
+        <div class="spindle"></div>
+      </div>
+      <div class="tonearm" id="tonearm"></div>
+      <div class="glow" id="glow"></div>
+    </div>
+
+    <div class="controls">
+      <div class="track-info">
+        <div class="track-title" id="trackTitle">Loading...</div>
+        <div class="track-artist" id="trackArtist">...</div>
+      </div>
+
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <div class="buttons">
+        <button class="small" id="prevBtn" title="Previous">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="19 20 9 12 19 4 19 20"></polygon>
+            <line x1="5" y1="19" x2="5" y2="5"></line>
+          </svg>
+        </button>
+        
+        <button class="large" id="playBtn" title="Play">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+        </button>
+        
+        <button class="small" id="nextBtn" title="Next">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 4 15 12 5 20 5 4"></polygon>
+            <line x1="19" y1="5" x2="19" y2="19"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="playlist" id="playlist"></div>
+    </div>
+
+    <audio id="audio" preload="metadata"></audio>
+  </div>
+
+  <script>
+    // ============ CONFIGURATION ============
+    const ANGLE_REST = -45;  // Tonearm rest position
+    const ANGLE_START = 0;   // Tonearm at record start
+    const ANGLE_END = 30;    // Tonearm at record end
+
+    // Playlist data (easily replaceable with API/database)
+    const tracks = [
+      { id: 1, title: "You Could Be My Angel", artist: "Live Performance", url: "/audio/You_Could_Be_My_Angel_Live.mp3" },
+      { id: 2, title: "Soul Survivor", artist: "Original Recording", url: "/audio/Soul_Survivor.mp3" },
+      { id: 3, title: "Piece of What it Takes", artist: "Studio Version", url: "/audio/Piece_of_What_it_Takes.mp3" },
+      { id: 4, title: "Mama Said", artist: "Live Performance", url: "/audio/Mama_Said_Live.mp3" },
+      { id: 5, title: "Gotta Roll", artist: "Live Performance", url: "/audio/Gotta_Roll_Live.mp3" },
+      { id: 6, title: "Don't Mind", artist: "Original Recording", url: "/audio/Don_t_Mind.mp3" },
+      { id: 7, title: "Come With Me", artist: "Studio Version", url: "/audio/Come_With_Me.mp3" }
+    ];
+
+    // ============ DOM ELEMENTS ============
+    const audio = document.getElementById('audio');
+    const vinyl = document.getElementById('vinyl');
+    const tonearm = document.getElementById('tonearm');
+    const glow = document.getElementById('glow');
+    const playBtn = document.getElementById('playBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const trackTitle = document.getElementById('trackTitle');
+    const trackArtist = document.getElementById('trackArtist');
+    const progressFill = document.getElementById('progressFill');
+    const playlistEl = document.getElementById('playlist');
+
+    // ============ STATE ============
+    let currentTrackIndex = 0;
+    let isPlaying = false;
+
+    // ============ FUNCTIONS ============
+    function loadTrack(index) {
+      const track = tracks[index];
+      audio.src = track.url;
+      trackTitle.textContent = track.title;
+      trackArtist.textContent = track.artist;
+      updatePlaylist();
+      updateButtons();
+    }
+
+    function togglePlay() {
+      if (isPlaying) {
+        audio.pause();
+        isPlaying = false;
+        vinyl.classList.remove('spinning');
+        glow.classList.remove('active');
+        playBtn.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+        updateTonearm(0);
+      } else {
+        audio.play();
+        isPlaying = true;
+        vinyl.classList.add('spinning');
+        glow.classList.add('active');
+        playBtn.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>';
+      }
+    }
+
+    function prevTrack() {
+      if (currentTrackIndex > 0) {
+        currentTrackIndex--;
+        loadTrack(currentTrackIndex);
+        if (isPlaying) audio.play();
+      }
+    }
+
+    function nextTrack() {
+      if (currentTrackIndex < tracks.length - 1) {
+        currentTrackIndex++;
+        loadTrack(currentTrackIndex);
+        if (isPlaying) audio.play();
+      }
+    }
+
+    function updateTonearm(progress) {
+      let angle;
+      if (!isPlaying && progress === 0) {
+        angle = ANGLE_REST;
+      } else {
+        angle = ANGLE_START + (ANGLE_END - ANGLE_START) * progress;
+      }
+      tonearm.style.transform = `rotate(${angle}deg)`;
+    }
+
+    function updateProgress() {
+      if (audio.duration) {
+        const progress = audio.currentTime / audio.duration;
+        progressFill.style.width = `${progress * 100}%`;
+        updateTonearm(progress);
+      }
+    }
+
+    function updateButtons() {
+      prevBtn.disabled = currentTrackIndex === 0;
+      nextBtn.disabled = currentTrackIndex === tracks.length - 1;
+    }
+
+    function updatePlaylist() {
+      playlistEl.innerHTML = tracks.map((track, index) => `
+        <button class="track-item ${index === currentTrackIndex ? 'active' : ''}" 
+                onclick="selectTrack(${index})"
+                aria-label="Play ${track.title}">
+          <span class="track-number">${index + 1}</span>
+          <div class="track-details">
+            <div class="title">${track.title}</div>
+            <div class="artist">${track.artist}</div>
+          </div>
+          ${index === currentTrackIndex && isPlaying ? `
+            <div class="visualizer">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          ` : ''}
+        </button>
+      `).join('');
+    }
+
+    function selectTrack(index) {
+      currentTrackIndex = index;
+      loadTrack(index);
+      if (isPlaying) audio.play();
+    }
+
+    // Make selectTrack available globally
+    window.selectTrack = selectTrack;
+
+    // ============ EVENT LISTENERS ============
+    playBtn.addEventListener('click', togglePlay);
+    prevBtn.addEventListener('click', prevTrack);
+    nextBtn.addEventListener('click', nextTrack);
+
+    audio.addEventListener('timeupdate', updateProgress);
+    
+    audio.addEventListener('ended', () => {
+      if (currentTrackIndex < tracks.length - 1) {
+        nextTrack();
+      } else {
+        isPlaying = false;
+        vinyl.classList.remove('spinning');
+        glow.classList.remove('active');
+        playBtn.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+        updateTonearm(0);
+      }
+    });
+
+    // Keyboard controls
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.code === 'ArrowLeft') {
+        prevTrack();
+      } else if (e.code === 'ArrowRight') {
+        nextTrack();
+      }
+    });
+
+    // ============ INITIALIZATION ============
+    loadTrack(0);
+    updateTonearm(0);
+  </script>
+</body>
+</html>
