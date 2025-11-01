@@ -76,7 +76,7 @@
     }
 
     .vinyl.spinning {
-      animation: spin 2s linear infinite;
+      animation: spin 1.8s linear infinite;
     }
 
     @keyframes spin {
@@ -95,8 +95,9 @@
 
     .tonearm img {
       width: 100%;
-      height: auto;
+      height: 100%;
       display: block;
+      object-fit: contain;
     }
 
     .glow {
@@ -551,14 +552,15 @@
         <div class="panel-title">🎯 Calibration Mode</div>
         <div class="config-values">
           <div id="platterInfo">Platter: L:0% T:0% Size:0%</div>
-          <div id="tonearmInfo">Tonearm: R:0% T:0% W:0%</div>
+          <div id="tonearmInfo">Tonearm: R:0% T:0% W:0% H:0%</div>
           <div id="pivotInfo">Pivot: X:0% Y:0%</div>
           <div id="anglesInfo">Angles: REST:0° START:0° END:0°</div>
         </div>
         <div class="controls-help">
           <div>Tab: Switch target (<span id="currentTarget">platter</span>)</div>
           <div>Arrows: Move/Adjust (Shift=1.0, Alt=0.02)</div>
-          <div>[ ]: Size/Width/END angle</div>
+          <div>[ ]: Tonearm Height/Size/END angle</div>
+          <div>+/-: Tonearm Width</div>
           <div>ESC: Exit calibration</div>
         </div>
         <div class="reference-controls">
@@ -586,27 +588,28 @@
   <script>
     // ============ CONFIGURATION ============
     const DEFAULT_CONFIG = {
-      configVersion: 3,
+      configVersion: 4,
       platter: {
-        leftPct: 13.2,
-        topPct: 14.6,
+        leftPct: 12.9,
+        topPct: 10.7,
         sizePct: 55.8,
       },
       tonearm: {
-        rightPct: 14.6,
-        topPct: 11.2,
-        widthPct: 19.2,
-        pivotXPct: 87.3,
-        pivotYPct: 9.6,
+        rightPct: 18.0,
+        topPct: 10.1,
+        widthPct: 17.1,
+        heightPct: 28.0,
+        pivotXPct: 87.9,
+        pivotYPct: 9.8,
       },
       angles: {
         REST: -33,
-        START: 2.5,
-        END: 22.5,
+        START: 4,
+        END: 22,
       },
     };
 
-    const STORAGE_KEY = 'vinyl-player-config-v3';
+    const STORAGE_KEY = 'vinyl-player-config-v4';
 
     // Load CONFIG from localStorage or use defaults
     let CONFIG = (() => {
@@ -830,15 +833,27 @@
         case '[':
           e.preventDefault();
           if (adjustTarget === 'platter') CONFIG.platter.sizePct = Math.max(1, CONFIG.platter.sizePct - step);
-          if (adjustTarget === 'tonearm') CONFIG.tonearm.widthPct = Math.max(1, CONFIG.tonearm.widthPct - step);
+          if (adjustTarget === 'tonearm') CONFIG.tonearm.heightPct = Math.max(1, CONFIG.tonearm.heightPct - step);
           if (adjustTarget === 'angles') CONFIG.angles.END -= step;
           saveAndUpdateConfig();
           break;
         case ']':
           e.preventDefault();
           if (adjustTarget === 'platter') CONFIG.platter.sizePct = Math.min(100, CONFIG.platter.sizePct + step);
-          if (adjustTarget === 'tonearm') CONFIG.tonearm.widthPct = Math.min(100, CONFIG.tonearm.widthPct + step);
+          if (adjustTarget === 'tonearm') CONFIG.tonearm.heightPct = Math.max(1, CONFIG.tonearm.heightPct + step);
           if (adjustTarget === 'angles') CONFIG.angles.END += step;
+          saveAndUpdateConfig();
+          break;
+        case '-':
+        case '_':
+          e.preventDefault();
+          if (adjustTarget === 'tonearm') CONFIG.tonearm.widthPct = Math.max(1, CONFIG.tonearm.widthPct - step);
+          saveAndUpdateConfig();
+          break;
+        case '=':
+        case '+':
+          e.preventDefault();
+          if (adjustTarget === 'tonearm') CONFIG.tonearm.widthPct = Math.min(100, CONFIG.tonearm.widthPct + step);
           saveAndUpdateConfig();
           break;
       }
@@ -861,6 +876,7 @@
       tonearm.style.right = `${CONFIG.tonearm.rightPct}%`;
       tonearm.style.top = `${CONFIG.tonearm.topPct}%`;
       tonearm.style.width = `${CONFIG.tonearm.widthPct}%`;
+      tonearm.style.height = `${CONFIG.tonearm.heightPct}%`;
       tonearm.style.transformOrigin = `${CONFIG.tonearm.pivotXPct}% ${CONFIG.tonearm.pivotYPct}%`;
       
       updateTonearm(audio.currentTime / audio.duration * 100 || 0);
@@ -886,7 +902,7 @@
       document.getElementById('platterInfo').textContent = 
         `Platter: L:${CONFIG.platter.leftPct.toFixed(1)}% T:${CONFIG.platter.topPct.toFixed(1)}% Size:${CONFIG.platter.sizePct.toFixed(1)}%`;
       document.getElementById('tonearmInfo').textContent = 
-        `Tonearm: R:${CONFIG.tonearm.rightPct.toFixed(1)}% T:${CONFIG.tonearm.topPct.toFixed(1)}% W:${CONFIG.tonearm.widthPct.toFixed(1)}%`;
+        `Tonearm: R:${CONFIG.tonearm.rightPct.toFixed(1)}% T:${CONFIG.tonearm.topPct.toFixed(1)}% W:${CONFIG.tonearm.widthPct.toFixed(1)}% H:${CONFIG.tonearm.heightPct.toFixed(1)}%`;
       document.getElementById('pivotInfo').textContent = 
         `Pivot: X:${CONFIG.tonearm.pivotXPct.toFixed(1)}% Y:${CONFIG.tonearm.pivotYPct.toFixed(1)}%`;
       document.getElementById('anglesInfo').textContent = 
