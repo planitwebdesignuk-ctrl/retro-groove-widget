@@ -55,24 +55,7 @@ const DEFAULT_CONFIG = {
 
 const STORAGE_KEY = 'vinyl-player-config-v8';
 
-// Sound effect generators
-const createNeedleDropSound = () => {
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-  const duration = 0.8;
-  const sampleRate = audioContext.sampleRate;
-  const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
-  const data = buffer.getChannelData(0);
-  
-  for (let i = 0; i < data.length; i++) {
-    const t = i / sampleRate;
-    const envelope = Math.exp(-t * 8);
-    data[i] = (Math.random() * 2 - 1) * 0.15 * envelope + 
-              Math.sin(t * 150) * 0.1 * envelope;
-  }
-  
-  return buffer;
-};
-
+// Sound effect generator for runout groove
 const createRunoutSound = () => {
   const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
   const duration = 1.2;
@@ -124,7 +107,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const baseImageRef = useRef<HTMLImageElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
-  const needleDropSoundRef = useRef<AudioBuffer | null>(null);
+  const needleDropSoundRef = useRef<HTMLAudioElement | null>(null);
   const runoutSoundRef = useRef<AudioBuffer | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const runoutSourceRef = useRef<AudioBufferSourceNode | null>(null);
@@ -134,12 +117,18 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   // Initialize audio context and sound effects
   useEffect(() => {
     try {
+      // Initialize needle drop sound (real audio file)
+      const needleDropAudio = new Audio('/audio/needle-drop.mp3');
+      needleDropAudio.volume = 0.6;
+      needleDropAudio.preload = 'auto';
+      needleDropSoundRef.current = needleDropAudio;
+      
+      // Initialize audio context for runout sound
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       audioContextRef.current = audioContext;
-      needleDropSoundRef.current = createNeedleDropSound();
       runoutSoundRef.current = createRunoutSound();
     } catch (error) {
-      console.error('Failed to initialize audio context:', error);
+      console.error('Failed to initialize audio:', error);
     }
     
     return () => {
@@ -150,13 +139,13 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   }, []);
 
   const playNeedleDropSound = useCallback(() => {
-    if (!config.scrubbing.scratchSoundsEnabled || !audioContextRef.current || !needleDropSoundRef.current) return;
+    if (!config.scrubbing.scratchSoundsEnabled || !needleDropSoundRef.current) return;
     
     try {
-      const source = audioContextRef.current.createBufferSource();
-      source.buffer = needleDropSoundRef.current;
-      source.connect(audioContextRef.current.destination);
-      source.start(0);
+      needleDropSoundRef.current.currentTime = 0;
+      needleDropSoundRef.current.play().catch(error => {
+        console.error('Failed to play needle drop sound:', error);
+      });
     } catch (error) {
       console.error('Failed to play needle drop sound:', error);
     }
