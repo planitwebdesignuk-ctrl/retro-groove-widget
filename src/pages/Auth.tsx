@@ -9,7 +9,6 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,36 +26,18 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        if (error) throw error;
-        
-        toast({ title: 'Welcome back!' });
-        navigate('/');
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`
-          }
-        });
-
-        if (error) throw error;
-        
-        toast({ 
-          title: 'Account created!',
-          description: 'You can now sign in.'
-        });
-        setIsLogin(true);
-      }
+      if (error) throw error;
+      
+      toast({ title: 'Welcome back!' });
+      navigate('/');
     } catch (error: any) {
       toast({
-        title: isLogin ? 'Login failed' : 'Signup failed',
+        title: 'Login failed',
         description: error.message,
         variant: 'destructive',
       });
@@ -69,9 +50,9 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>{isLogin ? 'Welcome Back' : 'Create Account'}</CardTitle>
+          <CardTitle>Admin Login</CardTitle>
           <CardDescription>
-            {isLogin ? 'Sign in to manage tracks' : 'Sign up to get started'}
+            Sign in to manage tracks
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -100,18 +81,9 @@ export default function Auth() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Sign Up'}
+              {loading ? 'Loading...' : 'Sign In'}
             </Button>
           </form>
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-            </button>
-          </div>
         </CardContent>
       </Card>
     </div>

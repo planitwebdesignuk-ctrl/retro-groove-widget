@@ -3,7 +3,7 @@ import VinylPlayer from "@/components/VinylPlayer";
 import { useTracks } from "@/hooks/useTracks";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { LogIn, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 
 const Index = () => {
@@ -22,23 +22,14 @@ const Index = () => {
 
   return (
     <div className="relative min-h-screen">
-      <div className="absolute top-4 right-4 z-10 flex gap-2">
-        {user ? (
-          <>
-            {role === 'admin' && (
-              <Button onClick={() => navigate('/admin')} variant="outline">
-                <Settings className="mr-2 h-4 w-4" />
-                Admin
-              </Button>
-            )}
-          </>
-        ) : (
-          <Button onClick={() => navigate('/auth')} variant="outline">
-            <LogIn className="mr-2 h-4 w-4" />
-            Login
+      {user && role === 'admin' && (
+        <div className="absolute top-4 right-4 z-10">
+          <Button onClick={() => navigate('/admin')} variant="outline">
+            <Settings className="mr-2 h-4 w-4" />
+            Admin
           </Button>
-        )}
-      </div>
+        </div>
+      )}
       
       {tracks && tracks.length > 0 ? (
         <VinylPlayer tracks={tracks} labelImageUrl="/images/label-cobnet-strange.png" />
