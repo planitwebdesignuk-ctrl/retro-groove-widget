@@ -35,7 +35,7 @@ const DEFAULT_CONFIG = {
   },
   angles: {
     REST: -0.6,
-    START: 16.0,
+    START: 14.0,
     END: 30.9,
   },
 };
