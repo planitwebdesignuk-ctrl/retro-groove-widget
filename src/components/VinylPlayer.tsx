@@ -224,7 +224,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
             }}
           >
             <img
-              src="/images/tonearm.png"
+              src="/images/tonearm-animated.png"
               alt="Tonearm"
               className="w-full h-auto object-contain drop-shadow-2xl"
             />
