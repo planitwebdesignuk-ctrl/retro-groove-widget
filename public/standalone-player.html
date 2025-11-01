@@ -76,7 +76,7 @@
     }
 
     .vinyl.spinning {
-      animation: spin 50s linear infinite;
+      animation: spin 25s linear infinite;
     }
 
     @keyframes spin {
@@ -713,6 +713,7 @@
     // ============ STATE ============
     let currentTrackIndex = 0;
     let isPlaying = false;
+    let isStartingPlayback = false;
 
     // ============ FUNCTIONS ============
     function loadTrack(index) {
@@ -727,6 +728,9 @@
     }
 
     function playTrack() {
+      // Set flag to ensure tonearm uses START position on first render
+      isStartingPlayback = true;
+      
       const startPlayback = () => {
         audio.play()
           .then(() => {
@@ -736,9 +740,15 @@
             playBtn.style.display = 'none';
             stopBtn.style.display = 'block';
             updateTonearm();
+            
+            // Reset isStartingPlayback after a short delay
+            setTimeout(() => {
+              isStartingPlayback = false;
+            }, 200);
           })
           .catch((error) => {
             console.error('Playback failed:', error);
+            isStartingPlayback = false;
           });
       };
       
@@ -816,6 +826,15 @@
       // When not playing, tonearm returns to REST position
       if (!isPlaying) {
         angle = CONFIG.angles.REST;
+      } else if (isStartingPlayback) {
+        // If we're just starting playback, use the track's start position
+        if (currentTrackIndex === 0) {
+          angle = CONFIG.angles.START; // 16.0°
+        } else {
+          const fractions = computeTrackFractions();
+          const trackStart = fractions[currentTrackIndex]?.start || 0;
+          angle = CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * trackStart;
+        }
       } else {
         // Safety check: ensure audio is ready with valid duration
         if (!audio.duration || isNaN(audio.duration)) {

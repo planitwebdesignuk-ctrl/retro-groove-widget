@@ -44,6 +44,7 @@ const STORAGE_KEY = 'vinyl-player-config-v5';
 
 const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isStartingPlayback, setIsStartingPlayback] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [calibrationMode, setCalibrationMode] = useState(false);
@@ -326,6 +327,9 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     const audio = audioRef.current;
     if (!audio) return;
     
+    // Set flag to ensure tonearm uses START position on first render
+    setIsStartingPlayback(true);
+    
     const startPlayback = () => {
       audio.play()
         .then(() => {
@@ -333,6 +337,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
         })
         .catch((error) => {
           console.error('Playback failed:', error);
+          setIsStartingPlayback(false);
         });
     };
     
@@ -400,6 +405,16 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     return start + within * span;
   };
 
+  // Reset isStartingPlayback after a short delay
+  useEffect(() => {
+    if (isStartingPlayback && isPlaying) {
+      const timer = setTimeout(() => {
+        setIsStartingPlayback(false);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [isStartingPlayback, isPlaying]);
+
   // Calculate tonearm rotation based on global fraction
   const getTonearmRotation = () => {
     const audio = audioRef.current;
@@ -407,6 +422,15 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     // When not playing, tonearm returns to REST position
     if (!isPlaying) {
       return config.angles.REST;
+    }
+    
+    // If we're just starting playback, use the track's start position
+    if (isStartingPlayback) {
+      if (currentTrackIndex === 0) {
+        return config.angles.START; // 16.0°
+      }
+      const trackStart = trackFractions[currentTrackIndex]?.start || 0;
+      return config.angles.START + (config.angles.END - config.angles.START) * trackStart;
     }
     
     // Safety check: ensure audio is ready with valid duration
