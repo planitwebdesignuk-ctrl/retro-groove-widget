@@ -16,29 +16,30 @@ interface VinylPlayerProps {
 
 // Centralized configuration for all visual elements
 const DEFAULT_CONFIG = {
+  configVersion: 3,
   base: {
     aspectRatio: 1.18, // Updated after image loads
   },
   platter: {
-    leftPct: 14.0,
-    topPct: 15.5,
-    sizePct: 53.5,
+    leftPct: 13.2,
+    topPct: 14.6,
+    sizePct: 55.8,
   },
   tonearm: {
-    rightPct: 13.5,
-    topPct: 13.5,
-    widthPct: 20.5,
-    pivotXPct: 86.0,
-    pivotYPct: 11.5,
+    rightPct: 14.6,
+    topPct: 11.2,
+    widthPct: 19.2,
+    pivotXPct: 87.3,
+    pivotYPct: 9.6,
   },
   angles: {
-    REST: -30,
-    START: 3,
-    END: 19,
+    REST: -33,
+    START: 2.5,
+    END: 22.5,
   },
 };
 
-const STORAGE_KEY = 'vinyl-player-config-v2';
+const STORAGE_KEY = 'vinyl-player-config-v3';
 
 const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -48,7 +49,14 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const [aspectRatio, setAspectRatio] = useState(DEFAULT_CONFIG.base.aspectRatio);
   const [config, setConfig] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : DEFAULT_CONFIG;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Version check: ignore saved config if version doesn't match
+      if (parsed.configVersion === DEFAULT_CONFIG.configVersion) {
+        return parsed;
+      }
+    }
+    return DEFAULT_CONFIG;
   });
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [referenceOpacity, setReferenceOpacity] = useState(50);
@@ -171,6 +179,17 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   };
 
   const resetConfig = () => {
+    setConfig(DEFAULT_CONFIG);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CONFIG));
+  };
+
+  const forceDefaults = () => {
+    // Clear all localStorage entries
+    try {
+      localStorage.removeItem('vinyl-player-config');
+      localStorage.removeItem('vinyl-player-config-v2');
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {}
     setConfig(DEFAULT_CONFIG);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CONFIG));
   };
@@ -448,27 +467,38 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
                   )}
                 </div>
 
-                <div className="flex gap-2">
-                  <button 
-                    onClick={copyConfig}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-green-600 rounded hover:bg-green-700 text-xs flex-1 justify-center"
-                  >
-                    <Copy className="h-3 w-3" />
-                    Copy
-                  </button>
-                  <button 
-                    onClick={resetConfig}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 rounded hover:bg-orange-700 text-xs flex-1 justify-center"
-                  >
-                    <RotateCcw className="h-3 w-3" />
-                    Reset
-                  </button>
-                  <button 
-                    onClick={() => setCalibrationMode(false)}
-                    className="px-3 py-1.5 bg-red-600 rounded hover:bg-red-700 text-xs flex-1"
-                  >
-                    Exit
-                  </button>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={copyConfig}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-green-600 rounded hover:bg-green-700 text-xs flex-1 justify-center"
+                    >
+                      <Copy className="h-3 w-3" />
+                      Copy
+                    </button>
+                    <button 
+                      onClick={resetConfig}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 rounded hover:bg-orange-700 text-xs flex-1 justify-center"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Reset
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={forceDefaults}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 rounded hover:bg-purple-700 text-xs flex-1 justify-center"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Force Defaults
+                    </button>
+                    <button 
+                      onClick={() => setCalibrationMode(false)}
+                      className="px-3 py-1.5 bg-red-600 rounded hover:bg-red-700 text-xs flex-1"
+                    >
+                      Exit
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

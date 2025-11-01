@@ -574,6 +574,9 @@
         <div class="action-buttons">
           <button onclick="copyConfig()" class="btn-copy">📋 Copy</button>
           <button onclick="resetConfig()" class="btn-reset">🔄 Reset</button>
+        </div>
+        <div class="action-buttons" style="margin-top: 0.5rem;">
+          <button onclick="forceDefaults()" style="background: #7c3aed; color: white;">⚡ Force Defaults</button>
           <button onclick="exitCalibration()" class="btn-exit">Exit</button>
         </div>
       </div>
@@ -583,27 +586,40 @@
   <script>
     // ============ CONFIGURATION ============
     const DEFAULT_CONFIG = {
+      configVersion: 3,
       platter: {
-        leftPct: 14.0,
-        topPct: 15.5,
-        sizePct: 53.5,
+        leftPct: 13.2,
+        topPct: 14.6,
+        sizePct: 55.8,
       },
       tonearm: {
-        rightPct: 13.5,
-        topPct: 13.5,
-        widthPct: 20.5,
-        pivotXPct: 86.0,
-        pivotYPct: 11.5,
+        rightPct: 14.6,
+        topPct: 11.2,
+        widthPct: 19.2,
+        pivotXPct: 87.3,
+        pivotYPct: 9.6,
       },
       angles: {
-        REST: -30,
-        START: 3,
-        END: 19,
+        REST: -33,
+        START: 2.5,
+        END: 22.5,
       },
     };
 
+    const STORAGE_KEY = 'vinyl-player-config-v3';
+
     // Load CONFIG from localStorage or use defaults
-    let CONFIG = JSON.parse(localStorage.getItem('vinyl-player-config-v2') || JSON.stringify(DEFAULT_CONFIG));
+    let CONFIG = (() => {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Version check: ignore saved config if version doesn't match
+        if (parsed.configVersion === DEFAULT_CONFIG.configVersion) {
+          return parsed;
+        }
+      }
+      return JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    })();
 
     // Playlist data (easily replaceable with API/database)
     const tracks = [
@@ -830,7 +846,7 @@
 
     // ============ CALIBRATION FUNCTIONS ============
     function saveAndUpdateConfig() {
-      localStorage.setItem('vinyl-player-config-v2', JSON.stringify(CONFIG));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(CONFIG));
       updateCalibrationUI();
       applyConfigToElements();
     }
@@ -895,6 +911,23 @@
       saveAndUpdateConfig();
     }
 
+    function forceDefaults() {
+      // Clear all localStorage entries
+      try {
+        localStorage.removeItem('vinyl-player-config');
+        localStorage.removeItem('vinyl-player-config-v2');
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {}
+      CONFIG = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+      saveAndUpdateConfig();
+    }
+
+    // Make functions available globally
+    window.copyConfig = copyConfig;
+    window.resetConfig = resetConfig;
+    window.forceDefaults = forceDefaults;
+    window.exitCalibration = exitCalibration;
+
     function exitCalibration() {
       calibrationMode = false;
       document.getElementById('calibrationOverlay').style.display = 'none';
@@ -932,11 +965,7 @@
     // Check for calibration and reset in URL
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('resetConfig') === '1') {
-      try {
-        localStorage.removeItem('vinyl-player-config');
-        localStorage.removeItem('vinyl-player-config-v2');
-      } catch {}
-      CONFIG = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+      forceDefaults();
     }
     if (urlParams.get('calibrate') === '1') {
       enterCalibrationMode();
