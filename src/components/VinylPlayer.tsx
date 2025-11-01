@@ -101,11 +101,15 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
       needleDropAudio.preload = 'auto';
       needleDropSoundRef.current = needleDropAudio;
       
-      // Initialize runout sound (plays after last track ends, loops until stopped)
+      // Initialize runout sound (plays once after last track ends, then tonearm returns)
       const runoutAudio = new Audio('/audio/needle-stuck.wav');
       runoutAudio.volume = 0.5;
-      runoutAudio.loop = true;
+      runoutAudio.loop = false;
       runoutAudio.preload = 'auto';
+      // When needle-stuck sound finishes, return tonearm to rest
+      runoutAudio.onended = () => {
+        setIsLastTrackFinished(false);
+      };
       runoutSoundRef.current = runoutAudio;
     } catch (error) {
       console.error('Failed to initialize audio:', error);
