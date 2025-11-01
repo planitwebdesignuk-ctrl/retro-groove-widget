@@ -113,54 +113,72 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     <div className="flex min-h-screen items-center justify-center bg-background p-4 sm:p-8">
       <div className="w-full max-w-4xl animate-fade-in">
         {/* Main Turntable */}
-        <div className="relative mx-auto aspect-[16/10] w-full overflow-hidden rounded-2xl bg-card shadow-2xl">
-          {/* Background - Wood grain turntable base */}
-          <div 
-            className="absolute inset-0 bg-cover bg-center opacity-80"
-            style={{
-              backgroundImage: "url('/images/turntable-base.png')",
-            }}
+        <div className="relative mx-auto w-full overflow-hidden rounded-2xl bg-card shadow-2xl">
+          {/* Background - Turntable base with full scene */}
+          <img 
+            src="/images/turntable-base.png"
+            alt="Turntable"
+            className="w-full h-auto"
           />
           
-          {/* Turntable platter area */}
-          <div className="absolute left-1/2 top-1/2 flex h-[45%] w-[45%] -translate-x-1/2 -translate-y-1/2 items-center justify-center">
-            {/* Vinyl Record */}
+          {/* Vinyl Record - positioned over the platter */}
+          <div 
+            className="absolute"
+            style={{
+              left: "30%",
+              top: "32%",
+              width: "31%",
+              height: "auto",
+              aspectRatio: "1/1"
+            }}
+          >
             <div
               className={cn(
-                "relative h-full w-full rounded-full transition-transform duration-500",
+                "relative w-full h-full rounded-full transition-transform duration-500",
                 isPlaying && "animate-spin-vinyl"
               )}
               style={{
-                backgroundImage: "url('/images/vinyl-record.png')",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
                 animationPlayState: isPlaying ? "running" : "paused",
               }}
             >
-              {/* Center spindle */}
-              <div className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-muted-foreground shadow-lg" />
+              <img
+                src="/images/vinyl-record.png"
+                alt="Vinyl Record"
+                className="w-full h-full object-contain"
+              />
             </div>
           </div>
 
-          {/* Tonearm */}
+          {/* Tonearm - positioned to overlay the static tonearm in base image */}
           <div
-            className="absolute right-[15%] top-[25%] origin-top-right transition-transform duration-700 ease-in-out"
+            className="absolute transition-transform duration-700 ease-in-out"
             style={{
+              right: "18%",
+              top: "30%",
+              width: "28%",
+              height: "auto",
+              transformOrigin: "85% 15%",
               transform: `rotate(${tonearmRotation}deg)`,
-              width: "35%",
-              height: "35%",
             }}
           >
             <img
               src="/images/tonearm.png"
               alt="Tonearm"
-              className="h-full w-full object-contain drop-shadow-xl"
+              className="w-full h-auto object-contain drop-shadow-2xl"
             />
           </div>
 
           {/* Glow effect when playing */}
           {isPlaying && (
-            <div className="absolute left-1/2 top-1/2 h-[48%] w-[48%] -translate-x-1/2 -translate-y-1/2 animate-glow-pulse rounded-full bg-accent/10 blur-2xl" />
+            <div 
+              className="absolute animate-glow-pulse rounded-full bg-accent/10 blur-2xl pointer-events-none"
+              style={{
+                left: "30%",
+                top: "32%",
+                width: "31%",
+                height: "31%",
+              }}
+            />
           )}
         </div>
 

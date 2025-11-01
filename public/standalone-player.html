@@ -42,36 +42,36 @@
     .turntable {
       position: relative;
       width: 100%;
-      aspect-ratio: 16 / 10;
-      background: url('/images/turntable-base.png') center/cover;
       border-radius: 1.5rem;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
       overflow: hidden;
     }
 
-    .turntable::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: rgba(26, 22, 18, 0.3);
-      pointer-events: none;
+    .turntable-base {
+      width: 100%;
+      height: auto;
+      display: block;
     }
 
     .platter {
       position: absolute;
-      left: 50%;
-      top: 50%;
-      width: 45%;
-      height: 45%;
-      transform: translate(-50%, -50%);
+      left: 30%;
+      top: 32%;
+      width: 31%;
+      aspect-ratio: 1/1;
     }
 
     .vinyl {
       width: 100%;
       height: 100%;
-      background: url('/images/vinyl-record.png') center/cover;
       border-radius: 50%;
       transition: transform 0.5s ease;
+    }
+
+    .vinyl img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
     }
 
     .vinyl.spinning {
@@ -83,39 +83,30 @@
       to { transform: rotate(360deg); }
     }
 
-    .spindle {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      width: 12px;
-      height: 12px;
-      background: #4a4a4a;
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-      z-index: 10;
-    }
-
     .tonearm {
       position: absolute;
-      right: 15%;
-      top: 25%;
-      width: 35%;
-      height: 35%;
-      background: url('/images/tonearm.png') center/contain no-repeat;
-      transform-origin: top right;
+      right: 18%;
+      top: 30%;
+      width: 28%;
+      height: auto;
+      transform-origin: 85% 15%;
       transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
       filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
       z-index: 5;
     }
 
+    .tonearm img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
     .glow {
       position: absolute;
-      left: 50%;
-      top: 50%;
-      width: 48%;
-      height: 48%;
-      transform: translate(-50%, -50%);
+      left: 30%;
+      top: 32%;
+      width: 31%;
+      height: 31%;
       background: radial-gradient(circle, rgba(234, 88, 12, 0.2), transparent 70%);
       border-radius: 50%;
       opacity: 0;
@@ -131,11 +122,9 @@
     @keyframes pulse {
       0%, 100% { 
         opacity: 0.6;
-        transform: translate(-50%, -50%) scale(1);
       }
       50% { 
         opacity: 1;
-        transform: translate(-50%, -50%) scale(1.05);
       }
     }
 
@@ -319,11 +308,15 @@
 <body>
   <div class="container">
     <div class="turntable">
+      <img src="/images/turntable-base.png" alt="Turntable" class="turntable-base">
       <div class="platter">
-        <div class="vinyl" id="vinyl"></div>
-        <div class="spindle"></div>
+        <div class="vinyl" id="vinyl">
+          <img src="/images/vinyl-record.png" alt="Vinyl Record">
+        </div>
       </div>
-      <div class="tonearm" id="tonearm"></div>
+      <div class="tonearm" id="tonearm">
+        <img src="/images/tonearm.png" alt="Tonearm">
+      </div>
       <div class="glow" id="glow"></div>
     </div>
 
