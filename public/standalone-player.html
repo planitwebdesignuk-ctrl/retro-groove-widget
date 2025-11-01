@@ -728,13 +728,29 @@
     }
 
     function playTrack() {
-      audio.play();
-      isPlaying = true;
-      vinyl.classList.add('spinning');
-      glow.classList.add('active');
-      playBtn.style.display = 'none';
-      stopBtn.style.display = 'block';
-      updateTonearm();
+      // Wait for audio to be ready before starting animation
+      if (audio.readyState >= 3) { // HAVE_FUTURE_DATA or better
+        audio.play();
+        isPlaying = true;
+        vinyl.classList.add('spinning');
+        glow.classList.add('active');
+        playBtn.style.display = 'none';
+        stopBtn.style.display = 'block';
+        updateTonearm();
+      } else {
+        const handleCanPlay = () => {
+          audio.play();
+          isPlaying = true;
+          vinyl.classList.add('spinning');
+          glow.classList.add('active');
+          playBtn.style.display = 'none';
+          stopBtn.style.display = 'block';
+          updateTonearm();
+          audio.removeEventListener('canplay', handleCanPlay);
+        };
+        audio.addEventListener('canplay', handleCanPlay);
+        audio.load(); // Ensure loading starts
+      }
     }
 
     function stopTrack() {
@@ -750,15 +766,15 @@
     }
 
     function prevTrack() {
-      isPlaying = false;
-      vinyl.classList.remove('spinning');
-      glow.classList.remove('active');
-      playBtn.style.display = 'block';
-      stopBtn.style.display = 'none';
+      const wasPlaying = isPlaying;
       
       if (currentTrackIndex > 0) {
         currentTrackIndex--;
         loadTrack(currentTrackIndex);
+        // Keep playing if it was playing
+        if (wasPlaying) {
+          setTimeout(() => playTrack(), 50); // Small delay to let track load
+        }
       } else {
         // Stay at track 0, just reset position
         audio.currentTime = 0;
@@ -768,11 +784,7 @@
     }
 
     function nextTrack() {
-      isPlaying = false;
-      vinyl.classList.remove('spinning');
-      glow.classList.remove('active');
-      playBtn.style.display = 'block';
-      stopBtn.style.display = 'none';
+      const wasPlaying = isPlaying;
       
       if (currentTrackIndex < tracks.length - 1) {
         currentTrackIndex++;
@@ -781,6 +793,10 @@
         currentTrackIndex = 0;
       }
       loadTrack(currentTrackIndex);
+      // Keep playing if it was playing
+      if (wasPlaying) {
+        setTimeout(() => playTrack(), 50); // Small delay to let track load
+      }
     }
 
     // Calculate global fraction based on current track segment

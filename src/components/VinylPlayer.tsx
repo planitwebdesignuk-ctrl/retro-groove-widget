@@ -317,7 +317,20 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   }, [currentTrackIndex, isPlaying]);
 
   const handlePlay = () => {
-    setIsPlaying(true);
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    // Wait for audio to be ready before starting animation
+    if (audio.readyState >= 3) { // HAVE_FUTURE_DATA or better
+      setIsPlaying(true);
+    } else {
+      const handleCanPlay = () => {
+        setIsPlaying(true);
+        audio.removeEventListener('canplay', handleCanPlay);
+      };
+      audio.addEventListener('canplay', handleCanPlay);
+      audio.load(); // Ensure loading starts
+    }
   };
 
   const handleStop = () => {
@@ -330,9 +343,13 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   };
 
   const handlePrevious = () => {
-    setIsPlaying(false);
+    const wasPlaying = isPlaying;
     if (currentTrackIndex > 0) {
       setCurrentTrackIndex(currentTrackIndex - 1);
+      // Keep playing state if it was playing
+      if (!wasPlaying) {
+        setIsPlaying(false);
+      }
     } else {
       // Stay at track 0, just reset position
       const audio = audioRef.current;
@@ -344,12 +361,16 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   };
 
   const handleNext = () => {
-    setIsPlaying(false);
+    const wasPlaying = isPlaying;
     if (currentTrackIndex < tracks.length - 1) {
       setCurrentTrackIndex(currentTrackIndex + 1);
     } else {
       // Wrap to first track
       setCurrentTrackIndex(0);
+    }
+    // Keep playing state if it was playing
+    if (!wasPlaying) {
+      setIsPlaying(false);
     }
   };
 
