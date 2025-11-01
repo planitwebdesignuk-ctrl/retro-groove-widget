@@ -20,14 +20,14 @@ const CONFIG = {
     aspectRatio: 1.18, // Updated after image loads
   },
   platter: {
-    leftPct: 14.8,
-    topPct: 16.5,
-    sizePct: 47.8,
+    leftPct: 19,
+    topPct: 19,
+    sizePct: 44,
   },
   tonearm: {
-    rightPct: 9.8,
-    topPct: 10.6,
-    widthPct: 34.2,
+    rightPct: 16,
+    topPct: 16,
+    widthPct: 24,
     pivotXPct: 88.0,
     pivotYPct: 9.5,
   },
