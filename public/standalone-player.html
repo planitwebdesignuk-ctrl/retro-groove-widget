@@ -817,9 +817,14 @@
       } else {
         // If at the very start of a track, use the track's start position
         if (audio.currentTime < 0.1) {
-          const fractions = computeTrackFractions();
-          const trackStart = fractions[currentTrackIndex]?.start || 0;
-          angle = CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * trackStart;
+          // Track 0 should always start at START angle (25.6°)
+          if (currentTrackIndex === 0) {
+            angle = CONFIG.angles.START;
+          } else {
+            const fractions = computeTrackFractions();
+            const trackStart = fractions[currentTrackIndex]?.start || 0;
+            angle = CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * trackStart;
+          }
         } else {
           // When playing, calculate position based on track progress
           const globalFraction = getGlobalFraction();

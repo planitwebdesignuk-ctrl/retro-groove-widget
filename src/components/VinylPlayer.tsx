@@ -395,6 +395,10 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     
     // If at the very start of a track, use the track's start position
     if (audio && audio.currentTime < 0.1) {
+      // Track 0 should always start at START angle (25.6°)
+      if (currentTrackIndex === 0) {
+        return config.angles.START;
+      }
       const trackStart = trackFractions[currentTrackIndex]?.start || 0;
       return config.angles.START + (config.angles.END - config.angles.START) * trackStart;
     }
@@ -455,7 +459,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
           >
             <div
               className={cn(
-                "relative w-full h-full rounded-full transition-transform duration-500",
+                "relative w-full h-full rounded-full",
                 isPlaying && "animate-spin-vinyl"
               )}
               style={{
