@@ -55,27 +55,7 @@ const DEFAULT_CONFIG = {
 
 const STORAGE_KEY = 'vinyl-player-config-v8';
 
-// Sound effect generator for runout groove
-const createRunoutSound = () => {
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-  const duration = 1.2;
-  const sampleRate = audioContext.sampleRate;
-  const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
-  const data = buffer.getChannelData(0);
-  
-  const clickInterval = sampleRate * 1.2; // One click per rotation
-  for (let i = 0; i < data.length; i++) {
-    const position = i % clickInterval;
-    if (position < sampleRate * 0.02) {
-      const envelope = Math.exp(-position / (sampleRate * 0.02) * 8);
-      data[i] = (Math.random() * 2 - 1) * 0.3 * envelope;
-    } else {
-      data[i] = (Math.random() * 2 - 1) * 0.02;
-    }
-  }
-  
-  return buffer;
-};
+// No need for synthetic sound generators - using real audio files
 
 const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -108,34 +88,28 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const needleDropSoundRef = useRef<HTMLAudioElement | null>(null);
-  const runoutSoundRef = useRef<AudioBuffer | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const runoutSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const runoutSoundRef = useRef<HTMLAudioElement | null>(null);
 
   const currentTrack = tracks[currentTrackIndex];
 
-  // Initialize audio context and sound effects
+  // Initialize audio effects
   useEffect(() => {
     try {
-      // Initialize needle drop sound (real audio file)
-      const needleDropAudio = new Audio('/audio/needle-drop.mp3');
+      // Initialize needle drop sound (plays when tonearm drops)
+      const needleDropAudio = new Audio('/audio/needle-drop.wav');
       needleDropAudio.volume = 0.6;
       needleDropAudio.preload = 'auto';
       needleDropSoundRef.current = needleDropAudio;
       
-      // Initialize audio context for runout sound
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      audioContextRef.current = audioContext;
-      runoutSoundRef.current = createRunoutSound();
+      // Initialize runout sound (plays after last track ends, loops until stopped)
+      const runoutAudio = new Audio('/audio/needle-stuck.wav');
+      runoutAudio.volume = 0.5;
+      runoutAudio.loop = true;
+      runoutAudio.preload = 'auto';
+      runoutSoundRef.current = runoutAudio;
     } catch (error) {
       console.error('Failed to initialize audio:', error);
     }
-    
-    return () => {
-      if (audioContextRef.current?.state !== 'closed') {
-        audioContextRef.current?.close();
-      }
-    };
   }, []);
 
   const playNeedleDropSound = useCallback(() => {
@@ -152,31 +126,23 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   }, [config.scrubbing.scratchSoundsEnabled]);
 
   const playRunoutSound = useCallback(() => {
-    if (!config.scrubbing.scratchSoundsEnabled || !audioContextRef.current || !runoutSoundRef.current) return;
+    if (!config.scrubbing.scratchSoundsEnabled || !runoutSoundRef.current) return;
     
     try {
-      // Stop existing runout sound if playing
-      if (runoutSourceRef.current) {
-        runoutSourceRef.current.stop();
-        runoutSourceRef.current = null;
-      }
-      
-      const source = audioContextRef.current.createBufferSource();
-      source.buffer = runoutSoundRef.current;
-      source.loop = true;
-      source.connect(audioContextRef.current.destination);
-      source.start(0);
-      runoutSourceRef.current = source;
+      runoutSoundRef.current.currentTime = 0;
+      runoutSoundRef.current.play().catch(error => {
+        console.error('Failed to play runout sound:', error);
+      });
     } catch (error) {
       console.error('Failed to play runout sound:', error);
     }
   }, [config.scrubbing.scratchSoundsEnabled]);
 
   const stopRunoutSound = useCallback(() => {
-    if (runoutSourceRef.current) {
+    if (runoutSoundRef.current) {
       try {
-        runoutSourceRef.current.stop();
-        runoutSourceRef.current = null;
+        runoutSoundRef.current.pause();
+        runoutSoundRef.current.currentTime = 0;
       } catch (error) {
         console.error('Failed to stop runout sound:', error);
       }
