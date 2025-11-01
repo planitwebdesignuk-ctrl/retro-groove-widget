@@ -38,7 +38,7 @@ const DEFAULT_CONFIG = {
     START: 14.0,
     END: 30.9,
   },
-  vinylSpeed: 20, // seconds per rotation
+  vinylSpeed: 5, // seconds per rotation
 };
 
 const STORAGE_KEY = 'vinyl-player-config-v6';
