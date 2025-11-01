@@ -28,8 +28,8 @@ const DEFAULT_CONFIG = {
   tonearm: {
     rightPct: 18.0,
     topPct: 10.1,
-    widthPct: 17.1,
-    heightPct: 28.0,
+    widthPct: 23.0,
+    heightPct: 35.0,
     pivotXPct: 87.9,
     pivotYPct: 9.8,
   },
