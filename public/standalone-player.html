@@ -561,13 +561,16 @@
           <div id="tonearmInfo">Tonearm: R:0% T:0% W:0% H:0%</div>
           <div id="pivotInfo">Pivot: X:0% Y:0%</div>
           <div id="anglesInfo">Angles: REST:0° START:0° END:0°</div>
+          <div id="tonearmSpeedPlayInfo">Tonearm Play: 1800ms (ease-out)</div>
+          <div id="tonearmSpeedStopInfo">Tonearm Stop: 800ms (cubic-bezier)</div>
           <div id="vinylSpeedInfo">Vinyl Speed: 20.0s per rotation</div>
         </div>
         <div class="controls-help">
           <div>Tab: Switch target (<span id="currentTarget">platter</span>)</div>
-          <div>Arrows: Move/Adjust (Shift=1.0, Alt=0.02)</div>
+          <div>Arrows: Move/Adjust (Shift=1.0/200ms, Alt=0.02/10ms)</div>
           <div>[ ]: Tonearm Height/Size/END angle</div>
           <div>+/-: Tonearm Width</div>
+          <div>Tonearm Speed: Left/Right (Shift=200ms, Alt=10ms, default=50ms)</div>
           <div>Vinyl: Left/Right arrows to adjust speed</div>
           <div>ESC: Exit calibration</div>
         </div>
@@ -596,7 +599,7 @@
   <script>
     // ============ CONFIGURATION ============
     const DEFAULT_CONFIG = {
-      configVersion: 6,
+      configVersion: 7,
       platter: {
         leftPct: 12.9,
         topPct: 10.7,
@@ -615,10 +618,16 @@
         START: 14.0,
         END: 30.9,
       },
+      tonearmSpeed: {
+        playMs: 1800,
+        stopMs: 800,
+        playEasing: 'ease-out',
+        stopEasing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      },
       vinylSpeed: 5, // seconds per rotation
     };
 
-    const STORAGE_KEY = 'vinyl-player-config-v6';
+    const STORAGE_KEY = 'vinyl-player-config-v7';
 
     // Load CONFIG from localStorage or use defaults
     let CONFIG = (() => {
@@ -735,7 +744,7 @@
       isStartingPlayback = true;
       
       // Apply slow transition for initial move to vinyl
-      tonearm.style.transition = 'transform 1.8s ease-out';
+      tonearm.style.transition = `transform ${CONFIG.tonearmSpeed.playMs}ms ${CONFIG.tonearmSpeed.playEasing}`;
       
       const startPlayback = () => {
         audio.play()
@@ -750,13 +759,14 @@
             // Reset to normal transition speed after animation completes
             setTimeout(() => {
               isStartingPlayback = false;
-              tonearm.style.transition = 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
-            }, 1800);
+              tonearm.style.transition = `transform ${CONFIG.tonearmSpeed.stopMs}ms ${CONFIG.tonearmSpeed.stopEasing}`;
+              console.debug(`Tonearm transition switched to Stop: ${CONFIG.tonearmSpeed.stopMs}ms ${CONFIG.tonearmSpeed.stopEasing}`);
+            }, CONFIG.tonearmSpeed.playMs);
           })
           .catch((error) => {
             console.error('Playback failed:', error);
             isStartingPlayback = false;
-            tonearm.style.transition = 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+            tonearm.style.transition = `transform ${CONFIG.tonearmSpeed.stopMs}ms ${CONFIG.tonearmSpeed.stopEasing}`;
           });
       };
       
@@ -771,6 +781,8 @@
         audio.addEventListener('canplay', handleCanPlay);
         audio.load(); // Ensure loading starts
       }
+      
+      console.debug(`Tonearm transition set to Play: ${CONFIG.tonearmSpeed.playMs}ms ${CONFIG.tonearmSpeed.playEasing}`);
     }
 
     function stopTrack() {
@@ -965,27 +977,33 @@
           break;
         case 'Tab':
           e.preventDefault();
-          const targets = ['platter', 'tonearm', 'pivot', 'angles', 'vinyl'];
+          const targets = ['platter', 'tonearm', 'pivot', 'angles', 'tonearm-speed-play', 'tonearm-speed-stop', 'vinyl'];
           const currentIndex = targets.indexOf(adjustTarget);
           adjustTarget = targets[(currentIndex + 1) % targets.length];
           updateCalibrationUI();
           break;
         case 'ArrowLeft':
           e.preventDefault();
-          if (adjustTarget === 'platter') CONFIG.platter.leftPct = Math.max(0, CONFIG.platter.leftPct - step);
-          if (adjustTarget === 'tonearm') CONFIG.tonearm.rightPct = Math.max(0, CONFIG.tonearm.rightPct + step);
-          if (adjustTarget === 'pivot') CONFIG.tonearm.pivotXPct = Math.max(0, CONFIG.tonearm.pivotXPct - step);
-          if (adjustTarget === 'angles') CONFIG.angles.REST -= step;
-          if (adjustTarget === 'vinyl') CONFIG.vinylSpeed = Math.max(1, CONFIG.vinylSpeed - step);
+          const stepLeft = e.shiftKey ? 200 : e.altKey ? 10 : (adjustTarget === 'tonearm-speed-play' || adjustTarget === 'tonearm-speed-stop') ? 50 : 0.1;
+          if (adjustTarget === 'platter') CONFIG.platter.leftPct = Math.max(0, CONFIG.platter.leftPct - stepLeft);
+          if (adjustTarget === 'tonearm') CONFIG.tonearm.rightPct = Math.max(0, CONFIG.tonearm.rightPct + stepLeft);
+          if (adjustTarget === 'pivot') CONFIG.tonearm.pivotXPct = Math.max(0, CONFIG.tonearm.pivotXPct - stepLeft);
+          if (adjustTarget === 'angles') CONFIG.angles.REST -= stepLeft;
+          if (adjustTarget === 'tonearm-speed-play') CONFIG.tonearmSpeed.playMs = Math.max(100, CONFIG.tonearmSpeed.playMs - stepLeft);
+          if (adjustTarget === 'tonearm-speed-stop') CONFIG.tonearmSpeed.stopMs = Math.max(100, CONFIG.tonearmSpeed.stopMs - stepLeft);
+          if (adjustTarget === 'vinyl') CONFIG.vinylSpeed = Math.max(1, CONFIG.vinylSpeed - stepLeft);
           saveAndUpdateConfig();
           break;
         case 'ArrowRight':
           e.preventDefault();
-          if (adjustTarget === 'platter') CONFIG.platter.leftPct = Math.min(100, CONFIG.platter.leftPct + step);
-          if (adjustTarget === 'tonearm') CONFIG.tonearm.rightPct = Math.max(0, CONFIG.tonearm.rightPct - step);
-          if (adjustTarget === 'pivot') CONFIG.tonearm.pivotXPct = Math.min(100, CONFIG.tonearm.pivotXPct + step);
-          if (adjustTarget === 'angles') CONFIG.angles.REST += step;
-          if (adjustTarget === 'vinyl') CONFIG.vinylSpeed = Math.min(100, CONFIG.vinylSpeed + step);
+          const stepRight = e.shiftKey ? 200 : e.altKey ? 10 : (adjustTarget === 'tonearm-speed-play' || adjustTarget === 'tonearm-speed-stop') ? 50 : 0.1;
+          if (adjustTarget === 'platter') CONFIG.platter.leftPct = Math.min(100, CONFIG.platter.leftPct + stepRight);
+          if (adjustTarget === 'tonearm') CONFIG.tonearm.rightPct = Math.max(0, CONFIG.tonearm.rightPct - stepRight);
+          if (adjustTarget === 'pivot') CONFIG.tonearm.pivotXPct = Math.min(100, CONFIG.tonearm.pivotXPct + stepRight);
+          if (adjustTarget === 'angles') CONFIG.angles.REST += stepRight;
+          if (adjustTarget === 'tonearm-speed-play') CONFIG.tonearmSpeed.playMs = Math.min(5000, CONFIG.tonearmSpeed.playMs + stepRight);
+          if (adjustTarget === 'tonearm-speed-stop') CONFIG.tonearmSpeed.stopMs = Math.min(5000, CONFIG.tonearmSpeed.stopMs + stepRight);
+          if (adjustTarget === 'vinyl') CONFIG.vinylSpeed = Math.min(100, CONFIG.vinylSpeed + stepRight);
           saveAndUpdateConfig();
           break;
         case 'ArrowUp':
@@ -1053,6 +1071,11 @@
       tonearm.style.height = 'auto';
       tonearm.style.transformOrigin = `${CONFIG.tonearm.pivotXPct}% ${CONFIG.tonearm.pivotYPct}%`;
       
+      // Initialize tonearm transition (will be overridden during playback)
+      if (!isPlaying) {
+        tonearm.style.transition = `transform ${CONFIG.tonearmSpeed.stopMs}ms ${CONFIG.tonearmSpeed.stopEasing}`;
+      }
+      
       const tonearmImg = tonearm.querySelector('img');
       if (tonearmImg) {
         tonearmImg.style.transform = `scaleY(${CONFIG.tonearm.lengthScale})`;
@@ -1090,13 +1113,17 @@
         `Pivot: X:${CONFIG.tonearm.pivotXPct.toFixed(1)}% Y:${CONFIG.tonearm.pivotYPct.toFixed(1)}%`;
       document.getElementById('anglesInfo').textContent = 
         `Angles: REST:${CONFIG.angles.REST.toFixed(1)}° START:${CONFIG.angles.START.toFixed(1)}° END:${CONFIG.angles.END.toFixed(1)}°`;
+      document.getElementById('tonearmSpeedPlayInfo').textContent = 
+        `Tonearm Play: ${CONFIG.tonearmSpeed.playMs}ms (${CONFIG.tonearmSpeed.playEasing})`;
+      document.getElementById('tonearmSpeedStopInfo').textContent = 
+        `Tonearm Stop: ${CONFIG.tonearmSpeed.stopMs}ms (${CONFIG.tonearmSpeed.stopEasing})`;
       document.getElementById('vinylSpeedInfo').textContent = 
         `Vinyl Speed: ${CONFIG.vinylSpeed.toFixed(1)}s per rotation`;
       document.getElementById('currentTarget').textContent = adjustTarget;
 
       // Highlight active target
       document.querySelectorAll('.config-values > div').forEach((el, i) => {
-        const targets = ['platter', 'tonearm', 'pivot', 'angles', 'vinyl'];
+        const targets = ['platter', 'tonearm', 'pivot', 'angles', 'tonearm-speed-play', 'tonearm-speed-stop', 'vinyl'];
         el.classList.toggle('active', targets[i] === adjustTarget);
       });
     }
@@ -1117,6 +1144,7 @@
       try {
         localStorage.removeItem('vinyl-player-config');
         localStorage.removeItem('vinyl-player-config-v2');
+        localStorage.removeItem('vinyl-player-config-v6');
         localStorage.removeItem(STORAGE_KEY);
       } catch {}
       CONFIG = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
@@ -1167,6 +1195,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('resetConfig') === '1') {
       forceDefaults();
+      console.log('Config reset to defaults');
     }
     if (urlParams.get('calibrate') === '1') {
       enterCalibrationMode();

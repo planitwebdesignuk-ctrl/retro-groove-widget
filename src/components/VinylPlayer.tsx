@@ -16,7 +16,7 @@ interface VinylPlayerProps {
 
 // Centralized configuration for all visual elements
 const DEFAULT_CONFIG = {
-  configVersion: 6,
+  configVersion: 7,
   base: {
     aspectRatio: 1.18, // Updated after image loads
   },
@@ -38,10 +38,16 @@ const DEFAULT_CONFIG = {
     START: 14.0,
     END: 30.9,
   },
+  tonearmSpeed: {
+    playMs: 1800,
+    stopMs: 800,
+    playEasing: 'ease-out',
+    stopEasing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+  },
   vinylSpeed: 5, // seconds per rotation
 };
 
-const STORAGE_KEY = 'vinyl-player-config-v6';
+const STORAGE_KEY = 'vinyl-player-config-v7';
 
 const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -64,7 +70,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   });
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [referenceOpacity, setReferenceOpacity] = useState(50);
-  const [adjustTarget, setAdjustTarget] = useState<'platter' | 'tonearm' | 'pivot' | 'angles' | 'vinyl'>('platter');
+  const [adjustTarget, setAdjustTarget] = useState<'platter' | 'tonearm' | 'pivot' | 'angles' | 'tonearm-speed-play' | 'tonearm-speed-stop' | 'vinyl'>('platter');
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationRef = useRef<number>();
   const baseImageRef = useRef<HTMLImageElement>(null);
@@ -129,9 +135,12 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     if (params.get('resetConfig') === '1') {
       try {
         localStorage.removeItem('vinyl-player-config');
+        localStorage.removeItem('vinyl-player-config-v2');
+        localStorage.removeItem('vinyl-player-config-v6');
         localStorage.removeItem(STORAGE_KEY);
       } catch {}
       setConfig(DEFAULT_CONFIG);
+      console.log('Config reset to defaults');
     }
     if (params.get('calibrate') === '1') {
       setCalibrationMode(true);
@@ -152,24 +161,30 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
           break;
         case 'Tab':
           e.preventDefault();
-          const targets: typeof adjustTarget[] = ['platter', 'tonearm', 'pivot', 'angles', 'vinyl'];
+          const targets: typeof adjustTarget[] = ['platter', 'tonearm', 'pivot', 'angles', 'tonearm-speed-play', 'tonearm-speed-stop', 'vinyl'];
           const currentIndex = targets.indexOf(adjustTarget);
           setAdjustTarget(targets[(currentIndex + 1) % targets.length]);
           break;
         case 'ArrowLeft':
           e.preventDefault();
+          const stepLeft = e.shiftKey ? 200 : e.altKey ? 10 : 50;
           if (adjustTarget === 'platter') updated.platter.leftPct = Math.max(0, updated.platter.leftPct - step);
           if (adjustTarget === 'tonearm') updated.tonearm.rightPct = Math.max(0, updated.tonearm.rightPct + step);
           if (adjustTarget === 'pivot') updated.tonearm.pivotXPct = Math.max(0, updated.tonearm.pivotXPct - step);
           if (adjustTarget === 'angles') updated.angles.REST -= step;
+          if (adjustTarget === 'tonearm-speed-play') updated.tonearmSpeed.playMs = Math.max(100, updated.tonearmSpeed.playMs - stepLeft);
+          if (adjustTarget === 'tonearm-speed-stop') updated.tonearmSpeed.stopMs = Math.max(100, updated.tonearmSpeed.stopMs - stepLeft);
           if (adjustTarget === 'vinyl') updated.vinylSpeed = Math.max(1, updated.vinylSpeed - step);
           break;
         case 'ArrowRight':
           e.preventDefault();
+          const stepRight = e.shiftKey ? 200 : e.altKey ? 10 : 50;
           if (adjustTarget === 'platter') updated.platter.leftPct = Math.min(100, updated.platter.leftPct + step);
           if (adjustTarget === 'tonearm') updated.tonearm.rightPct = Math.max(0, updated.tonearm.rightPct - step);
           if (adjustTarget === 'pivot') updated.tonearm.pivotXPct = Math.min(100, updated.tonearm.pivotXPct + step);
           if (adjustTarget === 'angles') updated.angles.REST += step;
+          if (adjustTarget === 'tonearm-speed-play') updated.tonearmSpeed.playMs = Math.min(5000, updated.tonearmSpeed.playMs + stepRight);
+          if (adjustTarget === 'tonearm-speed-stop') updated.tonearmSpeed.stopMs = Math.min(5000, updated.tonearmSpeed.stopMs + stepRight);
           if (adjustTarget === 'vinyl') updated.vinylSpeed = Math.min(100, updated.vinylSpeed + step);
           break;
         case 'ArrowUp':
@@ -255,6 +270,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     try {
       localStorage.removeItem('vinyl-player-config');
       localStorage.removeItem('vinyl-player-config-v2');
+      localStorage.removeItem('vinyl-player-config-v6');
       localStorage.removeItem(STORAGE_KEY);
     } catch {}
     setConfig(DEFAULT_CONFIG);
@@ -413,10 +429,10 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     if (isStartingPlayback && isPlaying) {
       const timer = setTimeout(() => {
         setIsStartingPlayback(false);
-      }, 1800); // Match the slow transition duration
+      }, config.tonearmSpeed.playMs);
       return () => clearTimeout(timer);
     }
-  }, [isStartingPlayback, isPlaying]);
+  }, [isStartingPlayback, isPlaying, config.tonearmSpeed.playMs]);
 
   // Calculate tonearm rotation based on global fraction
   const getTonearmRotation = () => {
@@ -462,6 +478,14 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   };
 
   const tonearmRotation = getTonearmRotation();
+
+  // Debug tonearm transition timing
+  useEffect(() => {
+    const transition = isStartingPlayback 
+      ? `${config.tonearmSpeed.playMs}ms ${config.tonearmSpeed.playEasing}` 
+      : `${config.tonearmSpeed.stopMs}ms ${config.tonearmSpeed.stopEasing}`;
+    console.debug(`Tonearm transition: ${transition}, isStarting: ${isStartingPlayback}, isPlaying: ${isPlaying}`);
+  }, [isStartingPlayback, isPlaying, config.tonearmSpeed]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4 sm:p-8">
@@ -544,18 +568,16 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
 
           {/* Tonearm - animated using the standalone tonearm image */}
           <div
-            className={cn(
-              "absolute",
-              isStartingPlayback 
-                ? "transition-transform duration-[1800ms] ease-out" 
-                : "transition-transform duration-[800ms] ease-in-out"
-            )}
+            className="absolute"
             style={{
               right: `${config.tonearm.rightPct}%`,
               top: `${config.tonearm.topPct}%`,
               width: `${config.tonearm.widthPct}%`,
               transformOrigin: `${config.tonearm.pivotXPct}% ${config.tonearm.pivotYPct}%`,
               transform: `rotate(${tonearmRotation}deg)`,
+              transition: isStartingPlayback 
+                ? `transform ${config.tonearmSpeed.playMs}ms ${config.tonearmSpeed.playEasing}` 
+                : `transform ${config.tonearmSpeed.stopMs}ms ${config.tonearmSpeed.stopEasing}`,
               zIndex: 3,
             }}
           >
@@ -625,6 +647,12 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
                   <div className={adjustTarget === 'angles' ? 'text-yellow-400 font-bold' : ''}>
                     Angles: REST:{config.angles.REST.toFixed(1)}° START:{config.angles.START.toFixed(1)}° END:{config.angles.END.toFixed(1)}°
                   </div>
+                  <div className={adjustTarget === 'tonearm-speed-play' ? 'text-yellow-400 font-bold' : ''}>
+                    Tonearm Play: {config.tonearmSpeed.playMs}ms ({config.tonearmSpeed.playEasing})
+                  </div>
+                  <div className={adjustTarget === 'tonearm-speed-stop' ? 'text-yellow-400 font-bold' : ''}>
+                    Tonearm Stop: {config.tonearmSpeed.stopMs}ms ({config.tonearmSpeed.stopEasing})
+                  </div>
                   <div className={adjustTarget === 'vinyl' ? 'text-yellow-400 font-bold' : ''}>
                     Vinyl Speed: {config.vinylSpeed.toFixed(1)}s per rotation
                   </div>
@@ -632,9 +660,10 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
 
                 <div className="mb-3 text-[10px] space-y-1 text-gray-300">
                   <div>Tab: Switch target ({adjustTarget})</div>
-                  <div>Arrows: Move/Adjust (Shift=1.0, Alt=0.02)</div>
+                  <div>Arrows: Move/Adjust (Shift=1.0/200ms, Alt=0.02/10ms)</div>
                   <div>[ ]: Tonearm Length/Size/END angle</div>
                   <div>+/-: Tonearm Width</div>
+                  <div>Tonearm Speed: Left/Right (Shift=200ms, Alt=10ms, default=50ms)</div>
                   <div>Vinyl: Left/Right arrows to adjust speed</div>
                   <div>ESC: Exit calibration</div>
                 </div>
