@@ -106,9 +106,12 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
       runoutAudio.volume = 0.5;
       runoutAudio.loop = false;
       runoutAudio.preload = 'auto';
-      // When needle-stuck sound finishes, return tonearm to rest
+      // When needle-stuck sound finishes, wait a moment then return tonearm to rest
       runoutAudio.onended = () => {
-        setIsLastTrackFinished(false);
+        setTimeout(() => {
+          setIsLastTrackFinished(false);
+          setIsPlaying(false);
+        }, 250);
       };
       runoutSoundRef.current = runoutAudio;
     } catch (error) {
@@ -365,9 +368,8 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     const handleEnded = () => {
       // Check if this is the last track
       if (currentTrackIndex === tracks.length - 1) {
-        // Last track finished - play runout sound
+        // Last track finished - play runout sound (keep tonearm in place until sound finishes)
         setIsLastTrackFinished(true);
-        setIsPlaying(false);
         playRunoutSound();
       } else {
         // Auto-advance to next track
