@@ -8,7 +8,6 @@ interface Track {
   title: string;
   artist: string;
   audioUrl: string;
-  duration: number;
 }
 
 interface VinylPlayerProps {
@@ -49,6 +48,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const [progress, setProgress] = useState(0);
   const [calibrationMode, setCalibrationMode] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(DEFAULT_CONFIG.base.aspectRatio);
+  const [trackDurations, setTrackDurations] = useState<number[]>([]);
   const [config, setConfig] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -69,6 +69,28 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentTrack = tracks[currentTrackIndex];
+
+  // Load actual track durations on mount
+  useEffect(() => {
+    const loadDurations = async () => {
+      const durations = await Promise.all(
+        tracks.map((track) => {
+          return new Promise<number>((resolve) => {
+            const audio = new Audio(track.audioUrl);
+            audio.addEventListener('loadedmetadata', () => {
+              resolve(audio.duration);
+            });
+            audio.addEventListener('error', () => {
+              resolve(0); // Fallback to 0 on error
+            });
+          });
+        })
+      );
+      setTrackDurations(durations);
+    };
+
+    loadDurations();
+  }, [tracks]);
 
   // Check for calibration/reset mode in URL
   useEffect(() => {
@@ -278,12 +300,12 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
 
   // Calculate playlist progress (0-100%)
   const getPlaylistProgress = () => {
-    if (!audioRef.current) return 0;
+    if (!audioRef.current || trackDurations.length === 0) return 0;
     
     // Sum durations of all previous tracks
     let previousDuration = 0;
     for (let i = 0; i < currentTrackIndex; i++) {
-      previousDuration += tracks[i].duration;
+      previousDuration += trackDurations[i] || 0;
     }
     
     // Add current track progress
@@ -291,7 +313,9 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     const totalTime = previousDuration + currentTrackTime;
     
     // Calculate total playlist duration
-    const totalPlaylistDuration = tracks.reduce((sum, track) => sum + track.duration, 0);
+    const totalPlaylistDuration = trackDurations.reduce((sum, duration) => sum + duration, 0);
+    
+    if (totalPlaylistDuration === 0) return 0;
     
     return (totalTime / totalPlaylistDuration) * 100;
   };

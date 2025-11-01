@@ -626,14 +626,41 @@
 
     // Playlist data (easily replaceable with API/database)
     const tracks = [
-      { id: 1, title: "You Could Be My Angel", artist: "Live Performance", url: "/audio/You_Could_Be_My_Angel_Live.mp3", duration: 240 },
-      { id: 2, title: "Soul Survivor", artist: "Original Recording", url: "/audio/Soul_Survivor.mp3", duration: 210 },
-      { id: 3, title: "Piece of What it Takes", artist: "Studio Version", url: "/audio/Piece_of_What_it_Takes.mp3", duration: 195 },
-      { id: 4, title: "Mama Said", artist: "Live Performance", url: "/audio/Mama_Said_Live.mp3", duration: 225 },
-      { id: 5, title: "Gotta Roll", artist: "Live Performance", url: "/audio/Gotta_Roll_Live.mp3", duration: 180 },
-      { id: 6, title: "Don't Mind", artist: "Original Recording", url: "/audio/Don_t_Mind.mp3", duration: 205 },
-      { id: 7, title: "Come With Me", artist: "Studio Version", url: "/audio/Come_With_Me.mp3", duration: 215 }
+      { id: 1, title: "You Could Be My Angel", artist: "Live Performance", url: "/audio/You_Could_Be_My_Angel_Live.mp3" },
+      { id: 2, title: "Soul Survivor", artist: "Original Recording", url: "/audio/Soul_Survivor.mp3" },
+      { id: 3, title: "Piece of What it Takes", artist: "Studio Version", url: "/audio/Piece_of_What_it_Takes.mp3" },
+      { id: 4, title: "Mama Said", artist: "Live Performance", url: "/audio/Mama_Said_Live.mp3" },
+      { id: 5, title: "Gotta Roll", artist: "Live Performance", url: "/audio/Gotta_Roll_Live.mp3" },
+      { id: 6, title: "Don't Mind", artist: "Original Recording", url: "/audio/Don_t_Mind.mp3" },
+      { id: 7, title: "Come With Me", artist: "Studio Version", url: "/audio/Come_With_Me.mp3" }
     ];
+
+    // Store actual track durations (loaded dynamically)
+    let trackDurations = [];
+
+    // Load actual track durations
+    function loadTrackDurations() {
+      const promises = tracks.map((track, index) => {
+        return new Promise((resolve) => {
+          const tempAudio = new Audio(track.url);
+          tempAudio.addEventListener('loadedmetadata', () => {
+            trackDurations[index] = tempAudio.duration;
+            resolve();
+          });
+          tempAudio.addEventListener('error', () => {
+            trackDurations[index] = 0; // Fallback on error
+            resolve();
+          });
+        });
+      });
+
+      Promise.all(promises).then(() => {
+        console.log('Track durations loaded:', trackDurations);
+      });
+    }
+
+    // Load durations on page load
+    loadTrackDurations();
 
     // ============ DOM ELEMENTS ============
     const audio = document.getElementById('audio');
@@ -696,10 +723,12 @@
     }
 
     function getPlaylistProgress() {
+      if (trackDurations.length === 0) return 0;
+      
       // Sum durations of all previous tracks
       let previousDuration = 0;
       for (let i = 0; i < currentTrackIndex; i++) {
-        previousDuration += tracks[i].duration;
+        previousDuration += trackDurations[i] || 0;
       }
       
       // Add current track progress
@@ -707,7 +736,9 @@
       const totalTime = previousDuration + currentTrackTime;
       
       // Calculate total playlist duration
-      const totalPlaylistDuration = tracks.reduce((sum, track) => sum + track.duration, 0);
+      const totalPlaylistDuration = trackDurations.reduce((sum, duration) => sum + duration, 0);
+      
+      if (totalPlaylistDuration === 0) return 0;
       
       return totalTime / totalPlaylistDuration;
     }
