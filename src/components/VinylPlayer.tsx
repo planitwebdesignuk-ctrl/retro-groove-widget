@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Play, Pause, SkipBack, SkipForward } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, Upload, Copy, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -15,26 +15,26 @@ interface VinylPlayerProps {
 }
 
 // Centralized configuration for all visual elements
-const CONFIG = {
+const DEFAULT_CONFIG = {
   base: {
     aspectRatio: 1.18, // Updated after image loads
   },
   platter: {
-    leftPct: 19,
-    topPct: 19,
-    sizePct: 44,
+    leftPct: 12.5,
+    topPct: 14.0,
+    sizePct: 55.0,
   },
   tonearm: {
-    rightPct: 16,
-    topPct: 16,
-    widthPct: 24,
-    pivotXPct: 88.0,
-    pivotYPct: 9.5,
+    rightPct: 14.0,
+    topPct: 12.0,
+    widthPct: 22.0,
+    pivotXPct: 86.5,
+    pivotYPct: 10.0,
   },
   angles: {
-    REST: -26,
-    START: 4,
-    END: 22,
+    REST: -30,
+    START: 3,
+    END: 20,
   },
 };
 
@@ -43,10 +43,18 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [calibrationMode, setCalibrationMode] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState(CONFIG.base.aspectRatio);
+  const [aspectRatio, setAspectRatio] = useState(DEFAULT_CONFIG.base.aspectRatio);
+  const [config, setConfig] = useState(() => {
+    const saved = localStorage.getItem('vinyl-player-config');
+    return saved ? JSON.parse(saved) : DEFAULT_CONFIG;
+  });
+  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [referenceOpacity, setReferenceOpacity] = useState(50);
+  const [adjustTarget, setAdjustTarget] = useState<'platter' | 'tonearm' | 'pivot' | 'angles'>('platter');
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationRef = useRef<number>();
   const baseImageRef = useRef<HTMLImageElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentTrack = tracks[currentTrackIndex];
 
@@ -58,6 +66,76 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     }
   }, []);
 
+  // Keyboard controls for calibration
+  useEffect(() => {
+    if (!calibrationMode) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const step = e.shiftKey ? 1.0 : e.altKey ? 0.02 : 0.1;
+      let updated = { ...config };
+
+      switch (e.key) {
+        case 'Escape':
+          setCalibrationMode(false);
+          break;
+        case 'Tab':
+          e.preventDefault();
+          const targets: typeof adjustTarget[] = ['platter', 'tonearm', 'pivot', 'angles'];
+          const currentIndex = targets.indexOf(adjustTarget);
+          setAdjustTarget(targets[(currentIndex + 1) % targets.length]);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (adjustTarget === 'platter') updated.platter.leftPct = Math.max(0, updated.platter.leftPct - step);
+          if (adjustTarget === 'tonearm') updated.tonearm.rightPct = Math.max(0, updated.tonearm.rightPct + step);
+          if (adjustTarget === 'pivot') updated.tonearm.pivotXPct = Math.max(0, updated.tonearm.pivotXPct - step);
+          if (adjustTarget === 'angles') updated.angles.REST -= step;
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          if (adjustTarget === 'platter') updated.platter.leftPct = Math.min(100, updated.platter.leftPct + step);
+          if (adjustTarget === 'tonearm') updated.tonearm.rightPct = Math.max(0, updated.tonearm.rightPct - step);
+          if (adjustTarget === 'pivot') updated.tonearm.pivotXPct = Math.min(100, updated.tonearm.pivotXPct + step);
+          if (adjustTarget === 'angles') updated.angles.REST += step;
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          if (adjustTarget === 'platter') updated.platter.topPct = Math.max(0, updated.platter.topPct - step);
+          if (adjustTarget === 'tonearm') updated.tonearm.topPct = Math.max(0, updated.tonearm.topPct - step);
+          if (adjustTarget === 'pivot') updated.tonearm.pivotYPct = Math.max(0, updated.tonearm.pivotYPct - step);
+          if (adjustTarget === 'angles') updated.angles.START += step;
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          if (adjustTarget === 'platter') updated.platter.topPct = Math.min(100, updated.platter.topPct + step);
+          if (adjustTarget === 'tonearm') updated.tonearm.topPct = Math.min(100, updated.tonearm.topPct + step);
+          if (adjustTarget === 'pivot') updated.tonearm.pivotYPct = Math.min(100, updated.tonearm.pivotYPct + step);
+          if (adjustTarget === 'angles') updated.angles.START -= step;
+          break;
+        case '[':
+          e.preventDefault();
+          if (adjustTarget === 'platter') updated.platter.sizePct = Math.max(1, updated.platter.sizePct - step);
+          if (adjustTarget === 'tonearm') updated.tonearm.widthPct = Math.max(1, updated.tonearm.widthPct - step);
+          if (adjustTarget === 'angles') updated.angles.END -= step;
+          break;
+        case ']':
+          e.preventDefault();
+          if (adjustTarget === 'platter') updated.platter.sizePct = Math.min(100, updated.platter.sizePct + step);
+          if (adjustTarget === 'tonearm') updated.tonearm.widthPct = Math.min(100, updated.tonearm.widthPct + step);
+          if (adjustTarget === 'angles') updated.angles.END += step;
+          break;
+      }
+
+      if (updated !== config) {
+        setConfig(updated);
+        localStorage.setItem('vinyl-player-config', JSON.stringify(updated));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [calibrationMode, config, adjustTarget]);
+
   // Load base image and get aspect ratio
   useEffect(() => {
     if (baseImageRef.current?.complete && baseImageRef.current.naturalWidth > 0) {
@@ -65,6 +143,28 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
       setAspectRatio(ratio);
     }
   }, []);
+
+  const handleReferenceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setReferenceImage(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const copyConfig = () => {
+    const configText = JSON.stringify(config, null, 2);
+    navigator.clipboard.writeText(configText);
+    alert('Config copied to clipboard!');
+  };
+
+  const resetConfig = () => {
+    setConfig(DEFAULT_CONFIG);
+    localStorage.setItem('vinyl-player-config', JSON.stringify(DEFAULT_CONFIG));
+  };
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -139,10 +239,10 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   // Calculate tonearm rotation based on progress
   const getTonearmRotation = () => {
     if (!isPlaying && progress === 0) {
-      return CONFIG.angles.REST;
+      return config.angles.REST;
     }
     // Interpolate between start and end angles based on progress
-    return CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * (progress / 100);
+    return config.angles.START + (config.angles.END - config.angles.START) * (progress / 100);
   };
 
   const tonearmRotation = getTonearmRotation();
@@ -169,13 +269,27 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
             }}
           />
           
+          {/* Reference Image Overlay */}
+          {calibrationMode && referenceImage && (
+            <img
+              src={referenceImage}
+              alt="Reference"
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              style={{ 
+                zIndex: 5, 
+                opacity: referenceOpacity / 100,
+                mixBlendMode: 'normal'
+              }}
+            />
+          )}
+
           {/* Vinyl Record - positioned over the platter */}
           <div 
             className="absolute"
             style={{
-              left: `${CONFIG.platter.leftPct}%`,
-              top: `${CONFIG.platter.topPct}%`,
-              width: `${CONFIG.platter.sizePct}%`,
+              left: `${config.platter.leftPct}%`,
+              top: `${config.platter.topPct}%`,
+              width: `${config.platter.sizePct}%`,
               aspectRatio: "1/1",
               zIndex: 2,
             }}
@@ -202,10 +316,10 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
             <div 
               className="absolute animate-glow-pulse rounded-full bg-accent/10 blur-2xl pointer-events-none"
               style={{
-                left: `${CONFIG.platter.leftPct}%`,
-                top: `${CONFIG.platter.topPct}%`,
-                width: `${CONFIG.platter.sizePct}%`,
-                height: `${CONFIG.platter.sizePct}%`,
+                left: `${config.platter.leftPct}%`,
+                top: `${config.platter.topPct}%`,
+                width: `${config.platter.sizePct}%`,
+                height: `${config.platter.sizePct}%`,
                 zIndex: 1,
               }}
             />
@@ -215,10 +329,10 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
           <div
             className="absolute transition-transform duration-700 ease-in-out"
             style={{
-              right: `${CONFIG.tonearm.rightPct}%`,
-              top: `${CONFIG.tonearm.topPct}%`,
-              width: `${CONFIG.tonearm.widthPct}%`,
-              transformOrigin: `${CONFIG.tonearm.pivotXPct}% ${CONFIG.tonearm.pivotYPct}%`,
+              right: `${config.tonearm.rightPct}%`,
+              top: `${config.tonearm.topPct}%`,
+              width: `${config.tonearm.widthPct}%`,
+              transformOrigin: `${config.tonearm.pivotXPct}% ${config.tonearm.pivotYPct}%`,
               transform: `rotate(${tonearmRotation}deg)`,
               zIndex: 3,
             }}
@@ -237,10 +351,10 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
               <div
                 className="absolute border-2 border-yellow-400 rounded-full"
                 style={{
-                  left: `${CONFIG.platter.leftPct}%`,
-                  top: `${CONFIG.platter.topPct}%`,
-                  width: `${CONFIG.platter.sizePct}%`,
-                  height: `${CONFIG.platter.sizePct}%`,
+                  left: `${config.platter.leftPct}%`,
+                  top: `${config.platter.topPct}%`,
+                  width: `${config.platter.sizePct}%`,
+                  height: `${config.platter.sizePct}%`,
                 }}
               />
               
@@ -248,17 +362,17 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
               <div
                 className="absolute"
                 style={{
-                  right: `${CONFIG.tonearm.rightPct}%`,
-                  top: `${CONFIG.tonearm.topPct}%`,
-                  width: `${CONFIG.tonearm.widthPct}%`,
+                  right: `${config.tonearm.rightPct}%`,
+                  top: `${config.tonearm.topPct}%`,
+                  width: `${config.tonearm.widthPct}%`,
                   aspectRatio: "auto",
                 }}
               >
                 <div
                   className="absolute"
                   style={{
-                    left: `${CONFIG.tonearm.pivotXPct}%`,
-                    top: `${CONFIG.tonearm.pivotYPct}%`,
+                    left: `${config.tonearm.pivotXPct}%`,
+                    top: `${config.tonearm.pivotYPct}%`,
                     transform: "translate(-50%, -50%)",
                   }}
                 >
@@ -268,20 +382,85 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
                 </div>
               </div>
 
-              {/* Info Display */}
-              <div className="absolute top-4 left-4 bg-black/80 text-white p-4 rounded text-xs font-mono pointer-events-auto">
-                <div className="font-bold mb-2">Calibration Mode (Press ESC to exit)</div>
-                <div>Platter: {CONFIG.platter.leftPct}%, {CONFIG.platter.topPct}%, size: {CONFIG.platter.sizePct}%</div>
-                <div>Tonearm: R:{CONFIG.tonearm.rightPct}% T:{CONFIG.tonearm.topPct}% W:{CONFIG.tonearm.widthPct}%</div>
-                <div>Pivot: {CONFIG.tonearm.pivotXPct}%, {CONFIG.tonearm.pivotYPct}%</div>
-                <div>Angles: REST:{CONFIG.angles.REST}° START:{CONFIG.angles.START}° END:{CONFIG.angles.END}°</div>
-                <div className="mt-2 text-yellow-400">Use Arrow keys to adjust (Shift=faster, Alt=slower)</div>
-                <button 
-                  onClick={() => setCalibrationMode(false)}
-                  className="mt-2 px-3 py-1 bg-red-600 rounded hover:bg-red-700"
-                >
-                  Exit Calibration
-                </button>
+              {/* Control Panel */}
+              <div className="absolute top-4 left-4 bg-black/90 text-white p-4 rounded-lg text-xs font-mono pointer-events-auto max-w-md">
+                <div className="font-bold mb-3 text-sm">🎯 Calibration Mode</div>
+                
+                <div className="mb-3 space-y-1">
+                  <div className={adjustTarget === 'platter' ? 'text-yellow-400 font-bold' : ''}>
+                    Platter: L:{config.platter.leftPct.toFixed(1)}% T:{config.platter.topPct.toFixed(1)}% Size:{config.platter.sizePct.toFixed(1)}%
+                  </div>
+                  <div className={adjustTarget === 'tonearm' ? 'text-yellow-400 font-bold' : ''}>
+                    Tonearm: R:{config.tonearm.rightPct.toFixed(1)}% T:{config.tonearm.topPct.toFixed(1)}% W:{config.tonearm.widthPct.toFixed(1)}%
+                  </div>
+                  <div className={adjustTarget === 'pivot' ? 'text-yellow-400 font-bold' : ''}>
+                    Pivot: X:{config.tonearm.pivotXPct.toFixed(1)}% Y:{config.tonearm.pivotYPct.toFixed(1)}%
+                  </div>
+                  <div className={adjustTarget === 'angles' ? 'text-yellow-400 font-bold' : ''}>
+                    Angles: REST:{config.angles.REST.toFixed(1)}° START:{config.angles.START.toFixed(1)}° END:{config.angles.END.toFixed(1)}°
+                  </div>
+                </div>
+
+                <div className="mb-3 text-[10px] space-y-1 text-gray-300">
+                  <div>Tab: Switch target ({adjustTarget})</div>
+                  <div>Arrows: Move/Adjust (Shift=1.0, Alt=0.02)</div>
+                  <div>[ ]: Size/Width/END angle</div>
+                  <div>ESC: Exit calibration</div>
+                </div>
+
+                {/* Reference Image Controls */}
+                <div className="mb-3 pb-3 border-b border-gray-700">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleReferenceImageUpload}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 rounded hover:bg-blue-700 text-xs mb-2 w-full justify-center"
+                  >
+                    <Upload className="h-3 w-3" />
+                    Upload Reference
+                  </button>
+                  {referenceImage && (
+                    <div className="space-y-1">
+                      <label className="block text-[10px]">Opacity: {referenceOpacity}%</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={referenceOpacity}
+                        onChange={(e) => setReferenceOpacity(Number(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <button 
+                    onClick={copyConfig}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-green-600 rounded hover:bg-green-700 text-xs flex-1 justify-center"
+                  >
+                    <Copy className="h-3 w-3" />
+                    Copy
+                  </button>
+                  <button 
+                    onClick={resetConfig}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 rounded hover:bg-orange-700 text-xs flex-1 justify-center"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Reset
+                  </button>
+                  <button 
+                    onClick={() => setCalibrationMode(false)}
+                    className="px-3 py-1.5 bg-red-600 rounded hover:bg-red-700 text-xs flex-1"
+                  >
+                    Exit
+                  </button>
+                </div>
               </div>
             </div>
           )}

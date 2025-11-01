@@ -57,11 +57,9 @@
 
     .platter {
       position: absolute;
-      left: 14.8%;
-      top: 16.5%;
-      width: 47.8%;
       aspect-ratio: 1/1;
       z-index: 2;
+      /* Position and size set dynamically via JavaScript */
     }
 
     .vinyl {
@@ -88,14 +86,11 @@
 
     .tonearm {
       position: absolute;
-      right: 9.8%;
-      top: 10.6%;
-      width: 34.2%;
       height: auto;
-      transform-origin: 88% 9.5%;
       transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
       filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
       z-index: 3;
+      /* Position and transform-origin set dynamically via JavaScript */
     }
 
     .tonearm img {
@@ -106,10 +101,6 @@
 
     .glow {
       position: absolute;
-      left: 14.8%;
-      top: 16.5%;
-      width: 47.8%;
-      height: 47.8%;
       background: radial-gradient(circle, rgba(234, 88, 12, 0.2), transparent 70%);
       border-radius: 50%;
       opacity: 0;
@@ -117,6 +108,7 @@
       pointer-events: none;
       animation: pulse 2s ease-in-out infinite;
       z-index: 1;
+      /* Position and size set dynamically via JavaScript */
     }
 
     .glow.active {
@@ -291,6 +283,185 @@
       50% { height: 16px; }
     }
 
+    /* Calibration Mode Styles */
+    .calibration-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .reference-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 5;
+    }
+
+    .calibration-guides {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .platter-ring {
+      position: absolute;
+      border: 2px solid #facc15;
+      border-radius: 50%;
+    }
+
+    .tonearm-pivot {
+      position: absolute;
+    }
+
+    .crosshair-h, .crosshair-v {
+      position: absolute;
+      background: #ef4444;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .crosshair-h {
+      width: 32px;
+      height: 2px;
+    }
+
+    .crosshair-v {
+      width: 2px;
+      height: 32px;
+    }
+
+    .crosshair-dot {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border: 2px solid #ef4444;
+      border-radius: 50%;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .calibration-panel {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      max-width: 400px;
+      pointer-events: auto;
+      z-index: 20;
+    }
+
+    .panel-title {
+      font-weight: bold;
+      margin-bottom: 0.75rem;
+      font-size: 13px;
+    }
+
+    .config-values {
+      margin-bottom: 0.75rem;
+      line-height: 1.6;
+    }
+
+    .config-values > div {
+      transition: color 0.2s;
+    }
+
+    .config-values > div.active {
+      color: #facc15;
+      font-weight: bold;
+    }
+
+    .controls-help {
+      margin-bottom: 0.75rem;
+      font-size: 10px;
+      color: #d1d5db;
+      line-height: 1.5;
+      padding-top: 0.75rem;
+      border-top: 1px solid #374151;
+    }
+
+    .reference-controls {
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #374151;
+    }
+
+    .reference-controls button {
+      width: 100%;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+      font-size: 11px;
+    }
+
+    .reference-controls label {
+      display: block;
+      font-size: 10px;
+      margin-bottom: 0.25rem;
+    }
+
+    .reference-controls input[type="range"] {
+      width: 100%;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .action-buttons button {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 11px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .btn-upload {
+      background: #2563eb;
+    }
+
+    .btn-upload:hover {
+      background: #1d4ed8;
+    }
+
+    .btn-copy {
+      background: #16a34a;
+      color: white;
+    }
+
+    .btn-copy:hover {
+      background: #15803d;
+    }
+
+    .btn-reset {
+      background: #ea580c;
+      color: white;
+    }
+
+    .btn-reset:hover {
+      background: #c2410c;
+    }
+
+    .btn-exit {
+      background: #dc2626;
+      color: white;
+    }
+
+    .btn-exit:hover {
+      background: #b91c1c;
+    }
+
     @media (max-width: 768px) {
       body {
         padding: 1rem;
@@ -305,6 +476,10 @@
       button.small {
         width: 40px;
         height: 40px;
+      }
+      .calibration-panel {
+        max-width: calc(100% - 2rem);
+        font-size: 10px;
       }
     }
   </style>
@@ -360,29 +535,75 @@
     </div>
 
     <audio id="audio" preload="metadata"></audio>
+
+    <!-- Calibration Overlay -->
+    <div id="calibrationOverlay" class="calibration-overlay" style="display: none;">
+      <img id="referenceImage" class="reference-image" style="display: none;" />
+      <div class="calibration-guides">
+        <div class="platter-ring" id="platterRing"></div>
+        <div class="tonearm-pivot" id="tonearmPivot">
+          <div class="crosshair-h"></div>
+          <div class="crosshair-v"></div>
+          <div class="crosshair-dot"></div>
+        </div>
+      </div>
+      <div class="calibration-panel">
+        <div class="panel-title">🎯 Calibration Mode</div>
+        <div class="config-values">
+          <div id="platterInfo">Platter: L:0% T:0% Size:0%</div>
+          <div id="tonearmInfo">Tonearm: R:0% T:0% W:0%</div>
+          <div id="pivotInfo">Pivot: X:0% Y:0%</div>
+          <div id="anglesInfo">Angles: REST:0° START:0° END:0°</div>
+        </div>
+        <div class="controls-help">
+          <div>Tab: Switch target (<span id="currentTarget">platter</span>)</div>
+          <div>Arrows: Move/Adjust (Shift=1.0, Alt=0.02)</div>
+          <div>[ ]: Size/Width/END angle</div>
+          <div>ESC: Exit calibration</div>
+        </div>
+        <div class="reference-controls">
+          <input type="file" id="refImageInput" accept="image/*" style="display: none;" />
+          <button onclick="document.getElementById('refImageInput').click()" class="btn-upload">
+            📤 Upload Reference
+          </button>
+          <div id="opacityControl" style="display: none;">
+            <label>Opacity: <span id="opacityValue">50</span>%</label>
+            <input type="range" id="opacitySlider" min="0" max="100" value="50" />
+          </div>
+        </div>
+        <div class="action-buttons">
+          <button onclick="copyConfig()" class="btn-copy">📋 Copy</button>
+          <button onclick="resetConfig()" class="btn-reset">🔄 Reset</button>
+          <button onclick="exitCalibration()" class="btn-exit">Exit</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
     // ============ CONFIGURATION ============
-    const CONFIG = {
+    const DEFAULT_CONFIG = {
       platter: {
-        leftPct: 19,
-        topPct: 19,
-        sizePct: 44,
+        leftPct: 12.5,
+        topPct: 14.0,
+        sizePct: 55.0,
       },
       tonearm: {
-        rightPct: 16,
-        topPct: 16,
-        widthPct: 24,
-        pivotXPct: 88.0,
-        pivotYPct: 9.5,
+        rightPct: 14.0,
+        topPct: 12.0,
+        widthPct: 22.0,
+        pivotXPct: 86.5,
+        pivotYPct: 10.0,
       },
       angles: {
-        REST: -26,
-        START: 4,
-        END: 22,
+        REST: -30,
+        START: 3,
+        END: 20,
       },
     };
+
+    // Load CONFIG from localStorage or use defaults
+    let CONFIG = JSON.parse(localStorage.getItem('vinyl-player-config') || JSON.stringify(DEFAULT_CONFIG));
 
     // Playlist data (easily replaceable with API/database)
     const tracks = [
@@ -528,20 +749,196 @@
     });
 
     // Keyboard controls
+    let calibrationMode = false;
+    let adjustTarget = 'platter';
+
     document.addEventListener('keydown', (e) => {
-      if (e.code === 'Space') {
-        e.preventDefault();
-        togglePlay();
-      } else if (e.code === 'ArrowLeft') {
-        prevTrack();
-      } else if (e.code === 'ArrowRight') {
-        nextTrack();
+      if (!calibrationMode) {
+        if (e.code === 'Space') {
+          e.preventDefault();
+          togglePlay();
+        } else if (e.code === 'ArrowLeft') {
+          prevTrack();
+        } else if (e.code === 'ArrowRight') {
+          nextTrack();
+        }
+        return;
+      }
+
+      // Calibration mode keyboard controls
+      const step = e.shiftKey ? 1.0 : e.altKey ? 0.02 : 0.1;
+      
+      switch (e.key) {
+        case 'Escape':
+          exitCalibration();
+          break;
+        case 'Tab':
+          e.preventDefault();
+          const targets = ['platter', 'tonearm', 'pivot', 'angles'];
+          const currentIndex = targets.indexOf(adjustTarget);
+          adjustTarget = targets[(currentIndex + 1) % targets.length];
+          updateCalibrationUI();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (adjustTarget === 'platter') CONFIG.platter.leftPct = Math.max(0, CONFIG.platter.leftPct - step);
+          if (adjustTarget === 'tonearm') CONFIG.tonearm.rightPct = Math.max(0, CONFIG.tonearm.rightPct + step);
+          if (adjustTarget === 'pivot') CONFIG.tonearm.pivotXPct = Math.max(0, CONFIG.tonearm.pivotXPct - step);
+          if (adjustTarget === 'angles') CONFIG.angles.REST -= step;
+          saveAndUpdateConfig();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          if (adjustTarget === 'platter') CONFIG.platter.leftPct = Math.min(100, CONFIG.platter.leftPct + step);
+          if (adjustTarget === 'tonearm') CONFIG.tonearm.rightPct = Math.max(0, CONFIG.tonearm.rightPct - step);
+          if (adjustTarget === 'pivot') CONFIG.tonearm.pivotXPct = Math.min(100, CONFIG.tonearm.pivotXPct + step);
+          if (adjustTarget === 'angles') CONFIG.angles.REST += step;
+          saveAndUpdateConfig();
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          if (adjustTarget === 'platter') CONFIG.platter.topPct = Math.max(0, CONFIG.platter.topPct - step);
+          if (adjustTarget === 'tonearm') CONFIG.tonearm.topPct = Math.max(0, CONFIG.tonearm.topPct - step);
+          if (adjustTarget === 'pivot') CONFIG.tonearm.pivotYPct = Math.max(0, CONFIG.tonearm.pivotYPct - step);
+          if (adjustTarget === 'angles') CONFIG.angles.START += step;
+          saveAndUpdateConfig();
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          if (adjustTarget === 'platter') CONFIG.platter.topPct = Math.min(100, CONFIG.platter.topPct + step);
+          if (adjustTarget === 'tonearm') CONFIG.tonearm.topPct = Math.min(100, CONFIG.tonearm.topPct + step);
+          if (adjustTarget === 'pivot') CONFIG.tonearm.pivotYPct = Math.min(100, CONFIG.tonearm.pivotYPct + step);
+          if (adjustTarget === 'angles') CONFIG.angles.START -= step;
+          saveAndUpdateConfig();
+          break;
+        case '[':
+          e.preventDefault();
+          if (adjustTarget === 'platter') CONFIG.platter.sizePct = Math.max(1, CONFIG.platter.sizePct - step);
+          if (adjustTarget === 'tonearm') CONFIG.tonearm.widthPct = Math.max(1, CONFIG.tonearm.widthPct - step);
+          if (adjustTarget === 'angles') CONFIG.angles.END -= step;
+          saveAndUpdateConfig();
+          break;
+        case ']':
+          e.preventDefault();
+          if (adjustTarget === 'platter') CONFIG.platter.sizePct = Math.min(100, CONFIG.platter.sizePct + step);
+          if (adjustTarget === 'tonearm') CONFIG.tonearm.widthPct = Math.min(100, CONFIG.tonearm.widthPct + step);
+          if (adjustTarget === 'angles') CONFIG.angles.END += step;
+          saveAndUpdateConfig();
+          break;
       }
     });
+
+    // ============ CALIBRATION FUNCTIONS ============
+    function saveAndUpdateConfig() {
+      localStorage.setItem('vinyl-player-config', JSON.stringify(CONFIG));
+      updateCalibrationUI();
+      applyConfigToElements();
+    }
+
+    function applyConfigToElements() {
+      // Update platter position and size
+      platter.style.left = `${CONFIG.platter.leftPct}%`;
+      platter.style.top = `${CONFIG.platter.topPct}%`;
+      platter.style.width = `${CONFIG.platter.sizePct}%`;
+      
+      // Update tonearm position and size
+      tonearm.style.right = `${CONFIG.tonearm.rightPct}%`;
+      tonearm.style.top = `${CONFIG.tonearm.topPct}%`;
+      tonearm.style.width = `${CONFIG.tonearm.widthPct}%`;
+      tonearm.style.transformOrigin = `${CONFIG.tonearm.pivotXPct}% ${CONFIG.tonearm.pivotYPct}%`;
+      
+      updateTonearm(audio.currentTime / audio.duration * 100 || 0);
+
+      if (calibrationMode) {
+        const platterRing = document.getElementById('platterRing');
+        platterRing.style.left = `${CONFIG.platter.leftPct}%`;
+        platterRing.style.top = `${CONFIG.platter.topPct}%`;
+        platterRing.style.width = `${CONFIG.platter.sizePct}%`;
+        platterRing.style.height = `${CONFIG.platter.sizePct}%`;
+
+        const tonearmPivot = document.getElementById('tonearmPivot');
+        tonearmPivot.style.right = `${CONFIG.tonearm.rightPct}%`;
+        tonearmPivot.style.top = `${CONFIG.tonearm.topPct}%`;
+        tonearmPivot.style.width = `${CONFIG.tonearm.widthPct}%`;
+        const pivotMarker = tonearmPivot.querySelector('.crosshair-h').parentElement;
+        pivotMarker.style.left = `${CONFIG.tonearm.pivotXPct}%`;
+        pivotMarker.style.top = `${CONFIG.tonearm.pivotYPct}%`;
+      }
+    }
+
+    function updateCalibrationUI() {
+      document.getElementById('platterInfo').textContent = 
+        `Platter: L:${CONFIG.platter.leftPct.toFixed(1)}% T:${CONFIG.platter.topPct.toFixed(1)}% Size:${CONFIG.platter.sizePct.toFixed(1)}%`;
+      document.getElementById('tonearmInfo').textContent = 
+        `Tonearm: R:${CONFIG.tonearm.rightPct.toFixed(1)}% T:${CONFIG.tonearm.topPct.toFixed(1)}% W:${CONFIG.tonearm.widthPct.toFixed(1)}%`;
+      document.getElementById('pivotInfo').textContent = 
+        `Pivot: X:${CONFIG.tonearm.pivotXPct.toFixed(1)}% Y:${CONFIG.tonearm.pivotYPct.toFixed(1)}%`;
+      document.getElementById('anglesInfo').textContent = 
+        `Angles: REST:${CONFIG.angles.REST.toFixed(1)}° START:${CONFIG.angles.START.toFixed(1)}° END:${CONFIG.angles.END.toFixed(1)}°`;
+      document.getElementById('currentTarget').textContent = adjustTarget;
+
+      // Highlight active target
+      document.querySelectorAll('.config-values > div').forEach((el, i) => {
+        const targets = ['platter', 'tonearm', 'pivot', 'angles'];
+        el.classList.toggle('active', targets[i] === adjustTarget);
+      });
+    }
+
+    function copyConfig() {
+      const configText = JSON.stringify(CONFIG, null, 2);
+      navigator.clipboard.writeText(configText);
+      alert('Config copied to clipboard!');
+    }
+
+    function resetConfig() {
+      CONFIG = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+      saveAndUpdateConfig();
+    }
+
+    function exitCalibration() {
+      calibrationMode = false;
+      document.getElementById('calibrationOverlay').style.display = 'none';
+    }
+
+    function enterCalibrationMode() {
+      calibrationMode = true;
+      document.getElementById('calibrationOverlay').style.display = 'block';
+      updateCalibrationUI();
+      applyConfigToElements();
+    }
+
+    // Reference image upload
+    document.getElementById('refImageInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const refImage = document.getElementById('referenceImage');
+          refImage.src = event.target.result;
+          refImage.style.display = 'block';
+          document.getElementById('opacityControl').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Opacity slider
+    document.getElementById('opacitySlider').addEventListener('input', (e) => {
+      const opacity = e.target.value;
+      document.getElementById('opacityValue').textContent = opacity;
+      document.getElementById('referenceImage').style.opacity = opacity / 100;
+    });
+
+    // Check for calibration mode in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('calibrate') === '1') {
+      enterCalibrationMode();
+    }
 
     // ============ INITIALIZATION ============
     loadTrack(0);
     updateTonearm(0);
+    applyConfigToElements(); // Apply CONFIG positioning on load
   </script>
 </body>
 </html>
