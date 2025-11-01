@@ -535,11 +535,9 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     // Stop current playback and reset
     audio.pause();
     
-    // Play needle drop sound
-    playNeedleDropSound();
-    
-    // Wait for tonearm animation, then start playing
+    // Wait for tonearm animation, then play needle drop and start track
     const playTimer = setTimeout(() => {
+      playNeedleDropSound();
       audio.play().catch((error) => {
         console.error('Playback failed during track change:', error);
         setIsPlaying(false);
