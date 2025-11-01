@@ -793,15 +793,22 @@
     }
 
     function updateTonearm() {
-      const globalFraction = getGlobalFraction();
       let angle;
       
       // When not playing, tonearm returns to REST position
       if (!isPlaying) {
         angle = CONFIG.angles.REST;
       } else {
-        // When playing, calculate position based on track progress
-        angle = CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * globalFraction;
+        // If at the very start of a track, use the track's start position
+        if (audio.currentTime < 0.1) {
+          const fractions = computeTrackFractions();
+          const trackStart = fractions[currentTrackIndex]?.start || 0;
+          angle = CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * trackStart;
+        } else {
+          // When playing, calculate position based on track progress
+          const globalFraction = getGlobalFraction();
+          angle = CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * globalFraction;
+        }
       }
       tonearm.style.transform = `rotate(${angle}deg)`;
     }

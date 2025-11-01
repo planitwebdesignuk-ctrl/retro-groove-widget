@@ -365,14 +365,21 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
 
   // Calculate tonearm rotation based on global fraction
   const getTonearmRotation = () => {
-    const globalFraction = getGlobalFraction();
+    const audio = audioRef.current;
     
     // When not playing, tonearm returns to REST position
     if (!isPlaying) {
       return config.angles.REST;
     }
     
+    // If at the very start of a track, use the track's start position
+    if (audio && audio.currentTime < 0.1) {
+      const trackStart = trackFractions[currentTrackIndex]?.start || 0;
+      return config.angles.START + (config.angles.END - config.angles.START) * trackStart;
+    }
+    
     // When playing, calculate position based on track progress
+    const globalFraction = getGlobalFraction();
     return config.angles.START + (config.angles.END - config.angles.START) * globalFraction;
   };
 
