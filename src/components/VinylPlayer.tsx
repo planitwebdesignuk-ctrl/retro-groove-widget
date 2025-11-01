@@ -38,6 +38,8 @@ const DEFAULT_CONFIG = {
   },
 };
 
+const STORAGE_KEY = 'vinyl-player-config-v2';
+
 const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
@@ -45,7 +47,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const [calibrationMode, setCalibrationMode] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(DEFAULT_CONFIG.base.aspectRatio);
   const [config, setConfig] = useState(() => {
-    const saved = localStorage.getItem('vinyl-player-config');
+    const saved = localStorage.getItem(STORAGE_KEY);
     return saved ? JSON.parse(saved) : DEFAULT_CONFIG;
   });
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
@@ -58,9 +60,16 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
 
   const currentTrack = tracks[currentTrackIndex];
 
-  // Check for calibration mode in URL
+  // Check for calibration/reset mode in URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    if (params.get('resetConfig') === '1') {
+      try {
+        localStorage.removeItem('vinyl-player-config');
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {}
+      setConfig(DEFAULT_CONFIG);
+    }
     if (params.get('calibrate') === '1') {
       setCalibrationMode(true);
     }
@@ -128,7 +137,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
 
       if (updated !== config) {
         setConfig(updated);
-        localStorage.setItem('vinyl-player-config', JSON.stringify(updated));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       }
     };
 
@@ -163,7 +172,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
 
   const resetConfig = () => {
     setConfig(DEFAULT_CONFIG);
-    localStorage.setItem('vinyl-player-config', JSON.stringify(DEFAULT_CONFIG));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CONFIG));
   };
 
   useEffect(() => {

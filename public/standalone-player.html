@@ -603,7 +603,7 @@
     };
 
     // Load CONFIG from localStorage or use defaults
-    let CONFIG = JSON.parse(localStorage.getItem('vinyl-player-config') || JSON.stringify(DEFAULT_CONFIG));
+    let CONFIG = JSON.parse(localStorage.getItem('vinyl-player-config-v2') || JSON.stringify(DEFAULT_CONFIG));
 
     // Playlist data (easily replaceable with API/database)
     const tracks = [
@@ -830,7 +830,7 @@
 
     // ============ CALIBRATION FUNCTIONS ============
     function saveAndUpdateConfig() {
-      localStorage.setItem('vinyl-player-config', JSON.stringify(CONFIG));
+      localStorage.setItem('vinyl-player-config-v2', JSON.stringify(CONFIG));
       updateCalibrationUI();
       applyConfigToElements();
     }
@@ -929,8 +929,15 @@
       document.getElementById('referenceImage').style.opacity = opacity / 100;
     });
 
-    // Check for calibration mode in URL
+    // Check for calibration and reset in URL
     const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('resetConfig') === '1') {
+      try {
+        localStorage.removeItem('vinyl-player-config');
+        localStorage.removeItem('vinyl-player-config-v2');
+      } catch {}
+      CONFIG = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    }
     if (urlParams.get('calibrate') === '1') {
       enterCalibrationMode();
     }
