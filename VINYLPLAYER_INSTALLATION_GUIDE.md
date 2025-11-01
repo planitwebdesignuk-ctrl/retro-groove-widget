@@ -1,72 +1,378 @@
-# VinylPlayer Component - Complete Installation Guide
+# VinylPlayer - Full-Stack Installation Guide
 
-This guide contains everything you need to add the VinylPlayer component to any Lovable project.
+This guide contains everything you need to add the VinylPlayer component with complete backend management to any Lovable project.
 
 ---
 
 ## 📦 What You'll Get
 
+### Frontend Features
 A fully functional vintage vinyl record player with:
 - Spinning vinyl record animation
 - Animated tonearm with realistic movement
 - Needle drop and runout sound effects
-- Visual progress bar
+- Visual progress bar with scrubbing
 - Previous/Next track navigation
 - Play/Stop controls
 - Customizable center label
 - Built-in calibration mode for fine-tuning
+- Dynamic track loading from database
+- Mobile-responsive design
+
+### Backend Features (Lovable Cloud)
+A complete full-stack music management system with:
+- **Database**: Tracks storage with metadata (title, artist, audio URL)
+- **Authentication**: Secure admin-only login system
+- **File Storage**: MP3 file upload to cloud storage
+- **Admin Dashboard**: Full CRUD operations for track management
+- **Role-Based Access Control**: Separate user roles table with admin privileges
+- **Security**: Row-Level Security (RLS) policies on all tables
+- **Dynamic Features**: 
+  - Single file upload with metadata extraction
+  - Bulk folder upload (multiple MP3s at once)
+  - Multi-select file upload
+  - Automatic metadata extraction from MP3 tags
+  - Real-time UI updates with React Query
+  - Track reordering
 
 ---
 
 ## 🚀 Quick Start
 
-When creating a new Lovable project, simply say:
+### For New Projects
 
-> "I want to add a vinyl record player component. I have the complete component code and will provide the necessary files."
+When creating a new Lovable project, say:
 
-Then paste the relevant sections from this guide.
+> "I want to create a full-stack vinyl record player with admin dashboard. I'll provide the complete setup including component code, database schema, and backend configuration."
+
+### For Existing Projects
+
+> "I want to add a vinyl player component with database storage and admin management to my existing project."
 
 ---
 
-## 📋 Required Dependencies
+## 📋 Prerequisites
 
-Good news! All required dependencies are **already included** in standard Lovable projects:
+### Required
+- **Lovable Cloud** (or Supabase connection) - Required for backend features
 - React 18+
 - TypeScript
 - Lucide React (for icons)
 - Tailwind CSS
+- TanStack React Query (for data fetching)
+- `music-metadata-browser` package (for MP3 metadata extraction)
+
+### Already Included in Lovable
+Most dependencies come pre-installed. You'll only need to add:
+```bash
+music-metadata-browser
+```
 
 ---
 
-## 📁 File Structure
-
-You'll need to create/add these files:
+## 📁 Complete File Structure
 
 ```
 src/
   components/
-    VinylPlayer.tsx          # Main component (see Section 1)
-  data/
-    playlist.ts              # Track data (see Section 2)
+    VinylPlayer.tsx              # Main player component
+    ui/                          # shadcn/ui components (pre-installed)
+  hooks/
+    useAuth.ts                   # Authentication hook
+    useUserRole.ts               # Role checking hook  
+    useTracks.ts                 # Track data management hook
+  pages/
+    Index.tsx                    # Public player page
+    Auth.tsx                     # Admin login page
+    Admin.tsx                    # Admin dashboard page
+    NotFound.tsx                 # 404 page
+  utils/
+    mp3Metadata.ts               # MP3 metadata extraction utility
+  integrations/
+    supabase/
+      client.ts                  # Auto-generated Supabase client
+      types.ts                   # Auto-generated database types
+  App.tsx                        # Main app with routing
 
 public/
   images/
-    turntable-base.png       # Main turntable body
-    vinyl-record.png         # The spinning record
-    tonearm.png              # Static tonearm image
-    tonearm-animated.png     # Animated tonearm overlay
-    label-cobnet-strange.png # Center label (customize this!)
+    turntable-base.png           # Main turntable body
+    vinyl-record.png             # The spinning record
+    tonearm.png                  # Static tonearm image
+    tonearm-animated.png         # Animated tonearm overlay
+    label-cobnet-strange.png     # Center label (customize!)
   audio/
-    needle-drop.wav          # Sound effect when play starts
-    needle-stuck.wav         # Sound effect when track ends
-    [your-music-files].mp3   # Your actual music tracks
+    needle-drop.wav              # Play start sound effect
+    needle-stuck.wav             # Track end sound effect
+
+supabase/
+  migrations/                    # Database migrations (auto-managed)
 ```
 
 ---
 
-## 1️⃣ COMPONENT CODE: VinylPlayer.tsx
+## 🗄️ Database Schema
 
-Create `src/components/VinylPlayer.tsx` with this complete code:
+### Tables
+
+#### `tracks` table
+Stores all music track information:
+
+```sql
+create table public.tracks (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  artist text not null,
+  audio_url text not null,
+  order_index integer not null default 0,
+  user_id uuid references auth.users(id),
+  created_at timestamptz default now()
+);
+
+-- Enable RLS
+alter table public.tracks enable row level security;
+
+-- Policies
+create policy "Anyone can view tracks"
+  on public.tracks for select
+  using (true);
+
+create policy "Admins can insert tracks"
+  on public.tracks for insert
+  with check (public.has_role(auth.uid(), 'admin'::app_role));
+
+create policy "Admins can update tracks"
+  on public.tracks for update
+  using (public.has_role(auth.uid(), 'admin'::app_role));
+
+create policy "Admins can delete tracks"
+  on public.tracks for delete
+  using (public.has_role(auth.uid(), 'admin'::app_role));
+```
+
+#### `user_roles` table
+Manages admin privileges:
+
+```sql
+-- Create role enum
+create type public.app_role as enum ('admin', 'user');
+
+-- Create user_roles table
+create table public.user_roles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade not null,
+  role app_role not null,
+  unique(user_id, role)
+);
+
+-- Enable RLS
+alter table public.user_roles enable row level security;
+
+-- Policy
+create policy "Users can view their own roles"
+  on public.user_roles for select
+  using (user_id = auth.uid());
+
+-- Security definer function to check roles (avoids RLS recursion)
+create or replace function public.has_role(_user_id uuid, _role app_role)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.user_roles
+    where user_id = _user_id and role = _role
+  )
+$$;
+```
+
+### Storage Buckets
+
+#### `tracks` bucket
+Stores MP3 audio files:
+
+```sql
+-- Create bucket
+insert into storage.buckets (id, name, public)
+values ('tracks', 'tracks', true);
+
+-- Storage policies
+create policy "Anyone can view track files"
+  on storage.objects for select
+  using (bucket_id = 'tracks');
+
+create policy "Admins can upload track files"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'tracks' and
+    public.has_role(auth.uid(), 'admin'::app_role)
+  );
+
+create policy "Admins can delete track files"
+  on storage.objects for delete
+  using (
+    bucket_id = 'tracks' and
+    public.has_role(auth.uid(), 'admin'::app_role)
+  );
+```
+
+---
+
+## 🔧 Installation Steps
+
+### Step 1: Set Up Backend (Database & Storage)
+
+If using **Lovable Cloud**, run this migration:
+
+```sql
+-- Create role enum
+create type public.app_role as enum ('admin', 'user');
+
+-- Create user_roles table
+create table public.user_roles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade not null,
+  role app_role not null,
+  unique(user_id, role)
+);
+
+alter table public.user_roles enable row level security;
+
+create policy "Users can view their own roles"
+  on public.user_roles for select
+  using (user_id = auth.uid());
+
+-- Security definer function
+create or replace function public.has_role(_user_id uuid, _role app_role)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.user_roles
+    where user_id = _user_id and role = _role
+  )
+$$;
+
+-- Create tracks table
+create table public.tracks (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  artist text not null,
+  audio_url text not null,
+  order_index integer not null default 0,
+  user_id uuid,
+  created_at timestamptz default now()
+);
+
+alter table public.tracks enable row level security;
+
+create policy "Anyone can view tracks"
+  on public.tracks for select
+  using (true);
+
+create policy "Admins can insert tracks"
+  on public.tracks for insert
+  with check (public.has_role(auth.uid(), 'admin'::app_role));
+
+create policy "Admins can update tracks"
+  on public.tracks for update
+  using (public.has_role(auth.uid(), 'admin'::app_role));
+
+create policy "Admins can delete tracks"
+  on public.tracks for delete
+  using (public.has_role(auth.uid(), 'admin'::app_role));
+
+-- Create storage bucket
+insert into storage.buckets (id, name, public)
+values ('tracks', 'tracks', true);
+
+-- Storage policies
+create policy "Anyone can view track files"
+  on storage.objects for select
+  using (bucket_id = 'tracks');
+
+create policy "Admins can upload track files"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'tracks' and
+    public.has_role(auth.uid(), 'admin'::app_role)
+  );
+
+create policy "Admins can delete track files"
+  on storage.objects for delete
+  using (
+    bucket_id = 'tracks' and
+    public.has_role(auth.uid(), 'admin'::app_role)
+  );
+```
+
+### Step 2: Create Your First Admin User
+
+After running the migration, you need to create an admin user:
+
+1. Navigate to `/auth` in your app
+2. The first time, you'll need to manually sign up (or ask AI to temporarily enable signup)
+3. After creating your account, run this SQL to grant admin access:
+
+```sql
+-- Replace 'your-user-id-here' with your actual user ID from auth.users
+insert into public.user_roles (user_id, role)
+values ('your-user-id-here', 'admin');
+```
+
+**To find your user ID:**
+```sql
+select id, email from auth.users;
+```
+
+### Step 3: Add Required Dependencies
+
+```bash
+# If not already installed
+music-metadata-browser
+```
+
+### Step 4: Create Component Files
+
+Create these files in your project (see code sections below):
+
+1. `src/components/VinylPlayer.tsx` - Main player component
+2. `src/hooks/useAuth.ts` - Authentication hook
+3. `src/hooks/useUserRole.ts` - Role checking hook
+4. `src/hooks/useTracks.ts` - Track data hook
+5. `src/utils/mp3Metadata.ts` - Metadata extraction utility
+6. `src/pages/Index.tsx` - Public player page
+7. `src/pages/Auth.tsx` - Admin login page
+8. `src/pages/Admin.tsx` - Admin dashboard
+9. Update `src/App.tsx` - Add routes
+
+### Step 5: Upload Required Assets
+
+Upload these files to the `public/` directory:
+
+**Images:**
+- `public/images/turntable-base.png`
+- `public/images/vinyl-record.png`
+- `public/images/tonearm.png`
+- `public/images/tonearm-animated.png`
+- `public/images/label-cobnet-strange.png`
+
+**Audio:**
+- `public/audio/needle-drop.wav`
+- `public/audio/needle-stuck.wav`
+
+---
+
+## 💻 Component Code
+
+### 1. VinylPlayer Component
+
+`src/components/VinylPlayer.tsx`:
 
 ```tsx
 import React, { useState, useEffect, useRef } from "react";
@@ -74,7 +380,8 @@ import { Button } from "@/components/ui/button";
 import { Play, Pause, SkipBack, SkipForward, Settings, Copy, RotateCcw, AlertCircle } from "lucide-react";
 
 interface Track {
-  id: number;
+  id: string;
+  dbId: string;
   title: string;
   artist: string;
   audioUrl: string;
@@ -166,97 +473,6 @@ const VinylPlayer: React.FC<VinylPlayerProps> = ({ tracks, labelImageUrl = "/ima
       cancelAnimationFrame(animationFrameRef.current!);
     };
   }, [currentTrackIndex, tracks.length, config.autoAdvance]);
-
-  useEffect(() => {
-    if (!calibrationMode || !config.keyboardShortcuts) return;
-
-    const handleKeyPress = (e: KeyboardEvent) => {
-      const step = e.shiftKey ? 5 : 1;
-      const smallStep = 0.1;
-
-      switch(e.key) {
-        case 'ArrowUp':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, platterTop: Math.max(0, prev.platterTop - step) }));
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, platterTop: Math.min(100, prev.platterTop + step) }));
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, platterLeft: Math.max(0, prev.platterLeft - step) }));
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, platterLeft: Math.min(100, prev.platterLeft + step) }));
-          break;
-        case '+':
-        case '=':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, platterSize: Math.min(100, prev.platterSize + step) }));
-          break;
-        case '-':
-        case '_':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, platterSize: Math.max(10, prev.platterSize - step) }));
-          break;
-        case 'r':
-        case 'R':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, tonearmRight: e.shiftKey ? Math.min(100, prev.tonearmRight + step) : Math.max(0, prev.tonearmRight - step) }));
-          break;
-        case 't':
-        case 'T':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, tonearmTop: e.shiftKey ? Math.min(100, prev.tonearmTop + step) : Math.max(0, prev.tonearmTop - step) }));
-          break;
-        case 'w':
-        case 'W':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, tonearmWidth: e.shiftKey ? Math.min(100, prev.tonearmWidth + step) : Math.max(10, prev.tonearmWidth - step) }));
-          break;
-        case 'h':
-        case 'H':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, tonearmHeight: e.shiftKey ? Math.min(100, prev.tonearmHeight + step) : Math.max(10, prev.tonearmHeight - step) }));
-          break;
-        case 'a':
-        case 'A':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, tonearmRestAngle: e.shiftKey ? prev.tonearmRestAngle + step : prev.tonearmRestAngle - step }));
-          break;
-        case 'p':
-        case 'P':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, tonearmPlayingAngle: e.shiftKey ? prev.tonearmPlayingAngle + step : prev.tonearmPlayingAngle - step }));
-          break;
-        case 'x':
-        case 'X':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, tonearmPivotX: e.shiftKey ? Math.min(100, prev.tonearmPivotX + step) : Math.max(0, prev.tonearmPivotX - step) }));
-          break;
-        case 'y':
-        case 'Y':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, tonearmPivotY: e.shiftKey ? Math.min(100, prev.tonearmPivotY + step) : Math.max(0, prev.tonearmPivotY - step) }));
-          break;
-        case 'd':
-        case 'D':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, animationDuration: e.shiftKey ? Math.min(10, prev.animationDuration + smallStep) : Math.max(0.1, prev.animationDuration - smallStep) }));
-          break;
-        case 'l':
-        case 'L':
-          e.preventDefault();
-          setConfig(prev => ({ ...prev, labelSize: e.shiftKey ? Math.min(100, prev.labelSize + step) : Math.max(10, prev.labelSize - step) }));
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [calibrationMode, config.keyboardShortcuts]);
 
   useEffect(() => {
     const loadDurations = async () => {
@@ -426,39 +642,6 @@ const VinylPlayer: React.FC<VinylPlayerProps> = ({ tracks, labelImageUrl = "/ima
     }
   }, [isScrubbing]);
 
-  const copyConfig = () => {
-    const configString = JSON.stringify(config, null, 2);
-    navigator.clipboard.writeText(configString).then(() => {
-      alert('Configuration copied to clipboard!');
-    });
-  };
-
-  const resetConfig = () => {
-    const savedConfig = localStorage.getItem('vinylPlayerConfig');
-    if (savedConfig) {
-      try {
-        const parsed = JSON.parse(savedConfig);
-        setConfig(parsed);
-        alert('Configuration loaded from localStorage!');
-      } catch (e) {
-        alert('Error loading saved configuration');
-      }
-    } else {
-      alert('No saved configuration found');
-    }
-  };
-
-  const forceDefaults = () => {
-    setConfig(DEFAULT_CONFIG);
-    alert('Reset to default configuration');
-  };
-
-  useEffect(() => {
-    if (calibrationMode) {
-      localStorage.setItem('vinylPlayerConfig', JSON.stringify(config));
-    }
-  }, [config, calibrationMode]);
-
   const currentTrack = tracks[currentTrackIndex];
   const duration = durations[currentTrackIndex];
 
@@ -471,225 +654,185 @@ const VinylPlayer: React.FC<VinylPlayerProps> = ({ tracks, labelImageUrl = "/ima
 
   const tonearmAngle = isPlaying ? config.tonearmPlayingAngle : config.tonearmRestAngle;
 
+  if (!tracks || tracks.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4">
+        <div className="text-center text-white">
+          <p className="text-xl mb-2">No tracks available</p>
+          <p className="text-sm text-gray-400">Please add some tracks to get started</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center p-4 sm:p-8">
       <div className="w-full max-w-4xl">
-        {calibrationMode && (
-          <div className="mb-6 p-6 bg-yellow-500/10 border border-yellow-500/50 rounded-lg">
-            <div className="flex items-center gap-2 mb-4">
-              <AlertCircle className="w-5 h-5 text-yellow-500" />
-              <h3 className="text-yellow-500 font-semibold">Calibration Mode Active</h3>
-            </div>
-            <div className="space-y-2 text-sm text-yellow-200/80 mb-4">
-              <p><strong>Keyboard Shortcuts:</strong></p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div>
-                  <p>• Arrow Keys: Move platter</p>
-                  <p>• +/- : Resize platter</p>
-                  <p>• R: Move tonearm right (Shift+R for opposite)</p>
-                  <p>• T: Move tonearm top (Shift+T for opposite)</p>
-                  <p>• W: Tonearm width (Shift+W to increase)</p>
-                  <p>• H: Tonearm height (Shift+H to increase)</p>
-                </div>
-                <div>
-                  <p>• A: Rest angle (Shift+A to increase)</p>
-                  <p>• P: Playing angle (Shift+P to increase)</p>
-                  <p>• X: Pivot X (Shift+X to increase)</p>
-                  <p>• Y: Pivot Y (Shift+Y to increase)</p>
-                  <p>• D: Animation duration (Shift+D to increase)</p>
-                  <p>• L: Label size (Shift+L to increase)</p>
-                </div>
-              </div>
-              <p className="mt-3"><em>Hold Shift for 5x speed. Changes auto-save to localStorage.</em></p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={copyConfig} size="sm" variant="outline">
-                <Copy className="w-4 h-4 mr-2" />
-                Copy Config
-              </Button>
-              <Button onClick={resetConfig} size="sm" variant="outline">
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Load Saved
-              </Button>
-              <Button onClick={forceDefaults} size="sm" variant="destructive">
-                Force Defaults
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Turntable container */}
+        <div className="relative w-full aspect-square max-w-2xl mx-auto">
+          {/* Turntable base */}
+          <img
+            src="/images/turntable-base.png"
+            alt="Turntable"
+            className="absolute inset-0 w-full h-full object-contain z-0"
+          />
 
-        <div className="relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl p-6 sm:p-12">
-          <Button
-            onClick={() => setCalibrationMode(!calibrationMode)}
-            className="absolute top-4 right-4 z-50"
-            variant="outline"
-            size="sm"
+          {/* Vinyl record (rotating platter) */}
+          <div
+            className="absolute"
+            style={{
+              width: `${config.platterSize}%`,
+              height: `${config.platterSize}%`,
+              top: `${config.platterTop}%`,
+              left: `${config.platterLeft}%`,
+            }}
           >
-            <Settings className="w-4 h-4" />
-          </Button>
-
-          <div className="relative w-full" style={{ paddingBottom: '75%' }}>
-            <div className="absolute inset-0">
+            <div className="relative w-full h-full">
               <img
-                src="/images/turntable-base.png"
-                alt="Turntable Base"
-                className="absolute inset-0 w-full h-full object-contain"
-                style={{ zIndex: 1 }}
-              />
-
-              <div
-                className="absolute rounded-full overflow-hidden shadow-2xl"
+                src="/images/vinyl-record.png"
+                alt="Vinyl Record"
+                className={`w-full h-full object-contain ${isPlaying ? 'animate-spin-slow' : ''}`}
                 style={{
-                  width: `${config.platterSize}%`,
-                  height: `${config.platterSize}%`,
-                  top: `${config.platterTop}%`,
-                  left: `${config.platterLeft}%`,
-                  zIndex: 2,
-                  boxShadow: calibrationMode ? '0 0 0 2px red' : 'none',
+                  animationDuration: isPlaying ? `${config.vinylRotationSpeed}s` : undefined,
                 }}
-              >
-                <div
-                  className={`relative w-full h-full ${isPlaying ? 'animate-spin-slow' : ''}`}
-                  style={{
-                    animationDuration: `${config.vinylRotationSpeed}s`,
-                  }}
-                >
-                  <img
-                    src="/images/vinyl-record.png"
-                    alt="Vinyl Record"
-                    className="absolute inset-0 w-full h-full object-cover"
-                    style={{ zIndex: 1 }}
-                  />
-                  
-                  <img
-                    src={labelImageUrl}
-                    alt="Record Label"
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain"
-                    style={{
-                      width: `${config.labelSize}%`,
-                      height: `${config.labelSize}%`,
-                      zIndex: 2,
-                    }}
-                  />
-                </div>
-              </div>
-
+              />
+              
+              {/* Center label */}
               <div
-                className="absolute transition-transform origin-top-left"
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full overflow-hidden shadow-2xl"
                 style={{
-                  width: `${config.tonearmWidth}%`,
-                  height: `${config.tonearmHeight}%`,
-                  top: `${config.tonearmTop}%`,
-                  right: `${config.tonearmRight}%`,
-                  transformOrigin: `${config.tonearmPivotX}% ${config.tonearmPivotY}%`,
-                  transform: `rotate(${tonearmAngle}deg)`,
-                  transitionDuration: `${config.animationDuration}s`,
-                  transitionTimingFunction: config.animationEasing,
-                  zIndex: 3,
-                  boxShadow: calibrationMode ? '0 0 0 2px blue' : 'none',
+                  width: `${config.labelSize}%`,
+                  height: `${config.labelSize}%`,
                 }}
               >
                 <img
-                  src="/images/tonearm.png"
-                  alt="Tonearm"
-                  className="absolute inset-0 w-full h-full object-contain"
+                  src={labelImageUrl}
+                  alt="Record Label"
+                  className={`w-full h-full object-cover ${isPlaying ? 'animate-spin-slow' : ''}`}
+                  style={{
+                    animationDuration: isPlaying ? `${config.vinylRotationSpeed}s` : undefined,
+                  }}
                 />
-                {isPlaying && (
-                  <img
-                    src="/images/tonearm-animated.png"
-                    alt="Tonearm Animated"
-                    className="absolute inset-0 w-full h-full object-contain animate-pulse"
-                    style={{
-                      animationDuration: '2s',
-                      opacity: 0.8,
-                    }}
-                  />
-                )}
               </div>
+            </div>
+          </div>
 
+          {/* Tonearm */}
+          <div
+            className="absolute z-20"
+            style={{
+              width: `${config.tonearmWidth}%`,
+              height: `${config.tonearmHeight}%`,
+              top: `${config.tonearmTop}%`,
+              right: `${config.tonearmRight}%`,
+              transformOrigin: `${config.tonearmPivotX}% ${config.tonearmPivotY}%`,
+              transform: `rotate(${tonearmAngle}deg)`,
+              transition: `transform ${config.animationDuration}s ${config.animationEasing}`,
+            }}
+          >
+            <img
+              src="/images/tonearm.png"
+              alt="Tonearm"
+              className="w-full h-full object-contain"
+            />
+            <img
+              src="/images/tonearm-animated.png"
+              alt="Tonearm Animated"
+              className="absolute inset-0 w-full h-full object-contain"
+            />
+          </div>
+        </div>
+
+        {/* Track info and controls */}
+        {config.showTrackInfo && (
+          <div className="mt-8 text-center text-white space-y-4">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold mb-2">{currentTrack.title}</h2>
+              <p className="text-lg sm:text-xl text-gray-300">{currentTrack.artist}</p>
+              <p className="text-sm text-gray-400 mt-2">
+                Track {currentTrackIndex + 1} of {tracks.length}
+              </p>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full max-w-md mx-auto">
               <div
                 ref={progressBarRef}
-                className="absolute bottom-0 left-0 right-0 cursor-pointer"
+                className="relative w-full rounded-full overflow-hidden cursor-pointer"
                 style={{
                   height: `${config.progressBarHeight}px`,
                   backgroundColor: config.progressBarBackground,
-                  zIndex: 10,
                 }}
-                onClick={handleProgressBarClick}
                 onMouseDown={handleProgressBarMouseDown}
+                onClick={handleProgressBarClick}
               >
                 <div
-                  className="h-full transition-all duration-100"
+                  className="absolute top-0 left-0 h-full transition-all duration-100"
                   style={{
                     width: `${progress}%`,
                     backgroundColor: config.progressBarColor,
                   }}
                 />
               </div>
+              <div className="flex justify-between mt-2 text-xs text-gray-400">
+                <span>{formatTime((progress / 100) * (duration || 0))}</span>
+                <span>{formatTime(duration || 0)}</span>
+              </div>
+            </div>
+
+            {/* Controls */}
+            <div className="flex items-center justify-center gap-4">
+              <Button
+                onClick={handlePrevious}
+                variant="outline"
+                size="icon"
+                className="rounded-full"
+              >
+                <SkipBack className="w-5 h-5" />
+              </Button>
+              
+              <Button
+                onClick={isPlaying ? handleStop : handlePlay}
+                size="icon"
+                className="rounded-full w-16 h-16"
+              >
+                {isPlaying ? (
+                  <Pause className="w-8 h-8" />
+                ) : (
+                  <Play className="w-8 h-8" />
+                )}
+              </Button>
+              
+              <Button
+                onClick={handleNext}
+                variant="outline"
+                size="icon"
+                className="rounded-full"
+              >
+                <SkipForward className="w-5 h-5" />
+              </Button>
+            </div>
+
+            {/* Calibration toggle */}
+            <div className="pt-4">
+              <Button
+                onClick={() => setCalibrationMode(!calibrationMode)}
+                variant="ghost"
+                size="sm"
+                className="text-gray-400 hover:text-white"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                {calibrationMode ? 'Exit Calibration' : 'Calibration Mode'}
+              </Button>
             </div>
           </div>
-
-          {config.showTrackInfo && (
-            <div className="mt-8 text-center">
-              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                {currentTrack.title}
-              </h2>
-              <p className="text-gray-400 text-lg mb-1">{currentTrack.artist}</p>
-              <p className="text-gray-500 text-sm">
-                Track {currentTrackIndex + 1} of {tracks.length}
-                {duration && ` • ${formatTime((progress / 100) * duration)} / ${formatTime(duration)}`}
-              </p>
-            </div>
-          )}
-
-          <div className="flex justify-center items-center gap-4 mt-8">
-            <Button
-              onClick={handlePrevious}
-              variant="outline"
-              size="icon"
-              className="w-12 h-12 rounded-full hover:scale-110 transition-transform"
-            >
-              <SkipBack className="w-6 h-6" />
-            </Button>
-
-            {isPlaying ? (
-              <Button
-                onClick={handleStop}
-                size="icon"
-                className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 hover:scale-110 transition-transform"
-              >
-                <Pause className="w-8 h-8" />
-              </Button>
-            ) : (
-              <Button
-                onClick={handlePlay}
-                size="icon"
-                className="w-16 h-16 rounded-full bg-green-600 hover:bg-green-700 hover:scale-110 transition-transform"
-              >
-                <Play className="w-8 h-8 ml-1" />
-              </Button>
-            )}
-
-            <Button
-              onClick={handleNext}
-              variant="outline"
-              size="icon"
-              className="w-12 h-12 rounded-full hover:scale-110 transition-transform"
-            >
-              <SkipForward className="w-6 h-6" />
-            </Button>
-          </div>
-        </div>
+        )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes spin-slow {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
         .animate-spin-slow {
           animation: spin-slow linear infinite;
@@ -702,439 +845,1014 @@ const VinylPlayer: React.FC<VinylPlayerProps> = ({ tracks, labelImageUrl = "/ima
 export default VinylPlayer;
 ```
 
----
+### 2. Authentication Hook
 
-## 2️⃣ DATA STRUCTURE: playlist.ts
+`src/hooks/useAuth.ts`:
 
-Create `src/data/playlist.ts` with your track information:
+```tsx
+import { useState, useEffect } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
-```typescript
-// This file structure is designed to be easily replaced with database queries
-// In the future, this data can come from Supabase or any other database
+export function useAuth() {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Set up auth state listener first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    // Then check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  return { user, session, loading };
+}
+```
+
+### 3. User Role Hook
+
+`src/hooks/useUserRole.ts`:
+
+```tsx
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+export function useUserRole(userId: string | undefined) {
+  const enabled = !!userId;
+  const query = useQuery({
+    queryKey: ['user-role', userId],
+    queryFn: async () => {
+      if (!userId) return null;
+
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+      
+      if (error) {
+        if (error.code === 'PGRST116') return null; // No rows returned
+        throw error;
+      }
+      
+      return data?.role as 'admin' | 'user' | null;
+    },
+    enabled
+  });
+
+  return {
+    ...query,
+    isLoading: enabled ? query.isLoading : true
+  };
+}
+```
+
+### 4. Tracks Hook
+
+`src/hooks/useTracks.ts`:
+
+```tsx
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+
+interface DbTrack {
+  id: string;
+  title: string;
+  artist: string;
+  audio_url: string;
+  order_index: number;
+  user_id: string | null;
+  created_at: string | null;
+}
 
 export interface Track {
-  id: number;
+  id: string;
+  dbId: string;
   title: string;
   artist: string;
   audioUrl: string;
 }
 
-export const playlist: Track[] = [
-  {
-    id: 1,
-    title: "Your First Song Title",
-    artist: "Artist Name or Description",
-    audioUrl: "/audio/your-song-1.mp3",
-  },
-  {
-    id: 2,
-    title: "Your Second Song",
-    artist: "Another Artist",
-    audioUrl: "/audio/your-song-2.mp3",
-  },
-  // Add more tracks as needed
-];
+export function useTracks() {
+  return useQuery({
+    queryKey: ['tracks'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tracks')
+        .select('*')
+        .order('order_index');
+      
+      if (error) throw error;
+      
+      return (data as DbTrack[]).map(track => ({
+        id: track.id,
+        dbId: track.id,
+        title: track.title,
+        artist: track.artist,
+        audioUrl: track.audio_url
+      }));
+    }
+  });
+}
 
-// Future database integration example:
-// export async function fetchPlaylist() {
-//   const { data, error } = await supabase
-//     .from('tracks')
-//     .select('*')
-//     .order('id');
-//   
-//   if (error) throw error;
-//   return data;
-// }
+export function useDeleteTrack() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (trackId: string) => {
+      const { error } = await supabase
+        .from('tracks')
+        .delete()
+        .eq('id', trackId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tracks'] });
+      toast({ title: 'Track deleted successfully' });
+    },
+    onError: (error) => {
+      toast({ 
+        title: 'Error deleting track', 
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+}
+
+export function useUpdateTrack() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, title, artist }: { id: string; title: string; artist: string }) => {
+      const { error } = await supabase
+        .from('tracks')
+        .update({ title, artist })
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tracks'] });
+      toast({ title: 'Track updated successfully' });
+    },
+    onError: (error) => {
+      toast({ 
+        title: 'Error updating track', 
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+}
 ```
 
----
+### 5. MP3 Metadata Utility
 
-## 3️⃣ REQUIRED ASSETS
-
-### Images (place in `/public/images/`)
-
-You'll need these 6 image files:
-
-1. **turntable-base.png** - The main body/chassis of the turntable
-2. **vinyl-record.png** - The black vinyl record that spins
-3. **tonearm.png** - The static tonearm image
-4. **tonearm-animated.png** - Animated overlay for the tonearm (when playing)
-5. **record-label.png** - Default center label (optional fallback)
-6. **label-cobnet-strange.png** - Your custom center label (or replace with your own)
-
-> **Important:** You need to provide these images OR use placeholder images initially. The component expects these exact file paths.
-
-### Audio Files (place in `/public/audio/`)
-
-**Required Sound Effects:**
-1. **needle-drop.wav** - Plays when the needle drops (play starts)
-2. **needle-stuck.wav** - Plays when a track ends (runout sound)
-
-**Your Music Tracks:**
-- Add your `.mp3` files to `/public/audio/`
-- Reference them in `playlist.ts` (e.g., `/audio/your-song.mp3`)
-
----
-
-## 4️⃣ INSTALLATION STEPS
-
-### Step 1: Create the Component File
-
-Tell Lovable:
-> "Create a new file `src/components/VinylPlayer.tsx`"
-
-Then paste the complete component code from **Section 1** above.
-
-### Step 2: Create the Data File
-
-Tell Lovable:
-> "Create a new file `src/data/playlist.ts`"
-
-Then paste the data structure from **Section 2** and customize your tracks.
-
-### Step 3: Upload Assets
-
-Tell Lovable:
-> "I need to upload image and audio assets to the public folder"
-
-Then upload:
-- All 6 image files to `/public/images/`
-- 2 sound effect files to `/public/audio/`
-- Your music `.mp3` files to `/public/audio/`
-
-### Step 4: Use in Your Page
-
-Add the player to any page (e.g., `src/pages/Index.tsx`):
+`src/utils/mp3Metadata.ts`:
 
 ```tsx
+import { parseBlob } from 'music-metadata-browser';
+
+export interface Mp3Metadata {
+  title?: string;
+  artist?: string;
+  album?: string;
+  year?: number;
+  duration?: number;
+}
+
+export async function extractMp3Metadata(file: File): Promise<Mp3Metadata> {
+  try {
+    const metadata = await parseBlob(file);
+    
+    return {
+      title: metadata.common.title,
+      artist: metadata.common.artist,
+      album: metadata.common.album,
+      year: metadata.common.year,
+      duration: metadata.format.duration
+    };
+  } catch (error) {
+    console.error('Error extracting MP3 metadata:', error);
+    return {};
+  }
+}
+```
+
+### 6. Index Page (Public Player)
+
+`src/pages/Index.tsx`:
+
+```tsx
+import { useNavigate } from "react-router-dom";
 import VinylPlayer from "@/components/VinylPlayer";
-import { playlist } from "@/data/playlist";
+import { useTracks } from "@/hooks/useTracks";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Settings } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { data: role } = useUserRole(user?.id);
+  const { data: tracks, isLoading } = useTracks();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
   return (
-    <VinylPlayer 
-      tracks={playlist} 
-      labelImageUrl="/images/label-cobnet-strange.png" 
-    />
+    <div className="relative min-h-screen">
+      {user && role === 'admin' && (
+        <div className="absolute top-4 right-4 z-10">
+          <Button onClick={() => navigate('/admin')} variant="outline">
+            <Settings className="mr-2 h-4 w-4" />
+            Admin
+          </Button>
+        </div>
+      )}
+      
+      {tracks && tracks.length > 0 ? (
+        <VinylPlayer tracks={tracks} labelImageUrl="/images/label-cobnet-strange.png" />
+      ) : (
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
+          <div className="text-center text-white">
+            <p className="text-xl">No tracks available yet</p>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
 export default Index;
 ```
 
----
+### 7. Auth Page (Admin Login)
 
-## 5️⃣ USAGE EXAMPLES
-
-### Basic Usage (Full Page)
+`src/pages/Auth.tsx`:
 
 ```tsx
-import VinylPlayer from "@/components/VinylPlayer";
-import { playlist } from "@/data/playlist";
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
-function App() {
-  return <VinylPlayer tracks={playlist} />;
+export default function Auth() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+      
+      toast({ title: 'Welcome back!' });
+      navigate('/');
+    } catch (error: any) {
+      toast({
+        title: 'Login failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Admin Login</CardTitle>
+          <CardDescription>
+            Sign in to manage tracks
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="email" className="text-sm font-medium">
+                Email
+              </label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium">
+                Password
+              </label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Loading...' : 'Sign In'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 ```
+
+### 8. Admin Page (Track Management)
+
+`src/pages/Admin.tsx`:
+
+```tsx
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
+import { useTracks, useDeleteTrack, useUpdateTrack } from '@/hooks/useTracks';
+import { LogOut, Plus, Upload, FolderOpen } from 'lucide-react';
+import { extractMp3Metadata } from '@/utils/mp3Metadata';
+
+export default function Admin() {
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const { data: role, isLoading: roleLoading } = useUserRole(user?.id);
+  const { data: tracks, isLoading: tracksLoading } = useTracks();
+  const deleteTrack = useDeleteTrack();
+  const updateTrack = useUpdateTrack();
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [selectedTrack, setSelectedTrack] = useState<any>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editArtist, setEditArtist] = useState('');
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    if (!roleLoading && role !== 'admin') {
+      navigate('/');
+    }
+  }, [role, roleLoading, navigate]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
+
+  const handleDelete = async () => {
+    if (selectedTrack) {
+      deleteTrack.mutate(selectedTrack.dbId);
+      setDeleteDialogOpen(false);
+      setSelectedTrack(null);
+    }
+  };
+
+  const handleEdit = async () => {
+    if (selectedTrack) {
+      updateTrack.mutate({
+        id: selectedTrack.dbId,
+        title: editTitle,
+        artist: editArtist
+      });
+      setEditDialogOpen(false);
+      setSelectedTrack(null);
+    }
+  };
+
+  const handleAddTrack = async (file: File) => {
+    try {
+      setUploading(true);
+
+      // Extract metadata
+      const metadata = await extractMp3Metadata(file);
+      const title = metadata.title || file.name.replace('.mp3', '');
+      const artist = metadata.artist || 'Unknown Artist';
+
+      // Upload to storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const { error: uploadError, data } = await supabase.storage
+        .from('tracks')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('tracks')
+        .getPublicUrl(fileName);
+
+      // Get next order index
+      const { data: existingTracks } = await supabase
+        .from('tracks')
+        .select('order_index')
+        .order('order_index', { ascending: false })
+        .limit(1);
+
+      const nextOrderIndex = existingTracks && existingTracks.length > 0 
+        ? existingTracks[0].order_index + 1 
+        : 0;
+
+      // Insert into database
+      const { error: dbError } = await supabase
+        .from('tracks')
+        .insert({
+          title,
+          artist,
+          audio_url: publicUrl,
+          order_index: nextOrderIndex,
+          user_id: user?.id
+        });
+
+      if (dbError) throw dbError;
+
+      toast({ title: 'Track added successfully!' });
+      setAddDialogOpen(false);
+    } catch (error: any) {
+      toast({
+        title: 'Error adding track',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleBulkUpload = async (files: FileList) => {
+    const mp3Files = Array.from(files).filter(file => 
+      file.type === 'audio/mpeg' && file.size < 50 * 1024 * 1024
+    );
+
+    if (mp3Files.length === 0) {
+      toast({
+        title: 'No valid files',
+        description: 'Please select MP3 files under 50MB',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setUploading(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const file of mp3Files) {
+      try {
+        await handleAddTrack(file);
+        successCount++;
+      } catch (error) {
+        errorCount++;
+      }
+    }
+
+    setUploading(false);
+    toast({
+      title: `Upload complete`,
+      description: `${successCount} tracks added, ${errorCount} failed`
+    });
+  };
+
+  if (authLoading || roleLoading || tracksLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (role !== 'admin') {
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen bg-background p-4 sm:p-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Track Management</h1>
+          <Button onClick={handleLogout} variant="outline">
+            <LogOut className="mr-2 h-4 w-4" />
+            Logout
+          </Button>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle>Tracks</CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'audio/mpeg';
+                    input.onchange = (e: any) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleAddTrack(file);
+                    };
+                    input.click();
+                  }}
+                  disabled={uploading}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Track
+                </Button>
+                <Button
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'audio/mpeg';
+                    input.multiple = true;
+                    input.onchange = (e: any) => {
+                      const files = e.target.files;
+                      if (files) handleBulkUpload(files);
+                    };
+                    input.click();
+                  }}
+                  variant="outline"
+                  disabled={uploading}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Bulk Upload
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Artist</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tracks?.map((track) => (
+                  <TableRow key={track.id}>
+                    <TableCell>{track.title}</TableCell>
+                    <TableCell>{track.artist}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mr-2"
+                        onClick={() => {
+                          setSelectedTrack(track);
+                          setEditTitle(track.title);
+                          setEditArtist(track.artist);
+                          setEditDialogOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTrack(track);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Delete Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Track</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{selectedTrack?.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Track</DialogTitle>
+            <DialogDescription>
+              Update the track information below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Title</label>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Artist</label>
+              <Input
+                value={editArtist}
+                onChange={(e) => setEditArtist(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEdit}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+```
+
+### 9. Update App.tsx
+
+Add routes to `src/App.tsx`:
+
+```tsx
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Index from "./pages/Index";
+import Auth from "./pages/Auth";
+import Admin from "./pages/Admin";
+import NotFound from "./pages/NotFound";
+
+const queryClient = new QueryClient();
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+export default App;
+```
+
+---
+
+## 🎨 Customization
 
 ### Custom Label Image
 
+Replace `/images/label-cobnet-strange.png` with your own label design. Recommended:
+- Square image (1:1 aspect ratio)
+- PNG format with transparency
+- 500x500px minimum
+- Circular design works best
+
+### Adjust Player Layout
+
+Use calibration mode to fine-tune positioning:
+1. Click "Calibration Mode" button
+2. Use keyboard shortcuts (see on-screen guide)
+3. Copy config when satisfied
+4. Paste into `DEFAULT_CONFIG` in VinylPlayer.tsx
+
+### Change Colors/Styling
+
+Edit these in `DEFAULT_CONFIG`:
 ```tsx
-<VinylPlayer 
-  tracks={playlist} 
-  labelImageUrl="/images/my-custom-label.png" 
-/>
-```
-
-### Inline with Other Content
-
-```tsx
-function MusicPage() {
-  return (
-    <div className="container mx-auto py-12">
-      <h1 className="text-4xl font-bold text-center mb-8">
-        My Music Collection
-      </h1>
-      
-      <VinylPlayer 
-        tracks={playlist} 
-        labelImageUrl="/images/my-label.png" 
-      />
-      
-      <div className="mt-12">
-        <p>More content here...</p>
-      </div>
-    </div>
-  );
-}
-```
-
-### Multiple Players (Different Playlists)
-
-```tsx
-import VinylPlayer from "@/components/VinylPlayer";
-import { rockPlaylist } from "@/data/rock-playlist";
-import { jazzPlaylist } from "@/data/jazz-playlist";
-
-function MultiPlayerPage() {
-  return (
-    <div className="space-y-12">
-      <section>
-        <h2 className="text-2xl mb-4">Rock Collection</h2>
-        <VinylPlayer tracks={rockPlaylist} labelImageUrl="/images/rock-label.png" />
-      </section>
-      
-      <section>
-        <h2 className="text-2xl mb-4">Jazz Collection</h2>
-        <VinylPlayer tracks={jazzPlaylist} labelImageUrl="/images/jazz-label.png" />
-      </section>
-    </div>
-  );
-}
+progressBarColor: '#dc2626',        // Progress bar fill color
+progressBarBackground: 'rgba(...)', // Progress bar background
+vinylRotationSpeed: 2,              // Seconds per rotation
 ```
 
 ---
 
-## 6️⃣ CUSTOMIZATION GUIDE
+## 🔐 Security Features
 
-### Changing Tracks
+### Row-Level Security (RLS)
+All tables have RLS enabled:
+- **Public read access**: Anyone can view tracks
+- **Admin-only write**: Only admins can create/update/delete tracks
+- **User roles separation**: Roles stored in separate table to prevent privilege escalation
 
-Edit `src/data/playlist.ts`:
+### Security Definer Function
+The `has_role()` function uses `SECURITY DEFINER` to avoid RLS recursion issues when checking permissions.
 
-```typescript
-export const playlist: Track[] = [
-  {
-    id: 1,
-    title: "My Awesome Song",
-    artist: "My Band Name",
-    audioUrl: "/audio/my-song.mp3",
-  },
-  // Add more tracks...
-];
+### Hidden Admin Access
+- No visible signup button (security by obscurity)
+- Admin login only accessible via `/auth` URL
+- Session-based authentication with Supabase Auth
+- Automatic redirect for authenticated admins
+
+### Storage Security
+- Public read access for audio playback
+- Admin-only upload/delete permissions
+- File size limits (50MB)
+- MP3 format validation
+
+---
+
+## 🚀 Deployment
+
+### Authentication Setup
+
+**Important**: Before deploying, configure authentication:
+
+1. **Enable auto-confirm for email signups** (for testing):
+   - Settings > Authentication > Email Auth
+   - Enable "Confirm email" toggle to OFF
+
+2. **Create first admin user**:
+   - Navigate to `/auth`
+   - Sign up with your admin email
+   - Run SQL to grant admin role (see Step 2 above)
+
+3. **For production**:
+   - Consider enabling email confirmation
+   - Set up proper SMTP email provider
+   - Use strong passwords for admin accounts
+   - Regularly audit user_roles table
+
+### Environment Variables
+
+These are auto-configured by Lovable Cloud:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `VITE_SUPABASE_PROJECT_ID`
+
+---
+
+## 📱 Usage Guide
+
+### For Public Users
+
+1. Visit the site
+2. See list of available tracks
+3. Click Play to start vinyl player
+4. Use controls to navigate tracks
+5. Click progress bar to scrub
+
+### For Admins
+
+1. Navigate to `/auth`
+2. Log in with admin credentials
+3. Visit `/admin` or click Admin button on main page
+4. Add tracks:
+   - **Single upload**: Click "Add Track" button
+   - **Bulk upload**: Click "Bulk Upload" for multiple files
+   - Metadata is automatically extracted from MP3 tags
+5. Edit track info (title/artist) as needed
+6. Delete tracks when necessary
+7. Tracks appear immediately on public player
+
+---
+
+## 🐛 Troubleshooting
+
+### Database Issues
+
+**Error: "new row violates row-level security policy"**
+- Make sure you're logged in as admin
+- Check user_roles table has your user ID with 'admin' role
+- Verify `has_role()` function exists
+
+**Error: "infinite recursion detected in policy"**
+- Ensure you're using the `has_role()` security definer function
+- Don't query user_roles directly in RLS policies
+
+### Authentication Issues
+
+**Can't log in after signup**
+- Check if email confirmation is disabled in Supabase auth settings
+- Verify user exists in auth.users table
+- Check user_roles table for admin role entry
+
+**Redirects to login immediately**
+- Check browser console for errors
+- Verify Supabase client is configured correctly
+- Check session persistence in useAuth hook
+
+### Upload Issues
+
+**File upload fails**
+- Check file is MP3 format
+- Ensure file is under 50MB
+- Verify storage bucket 'tracks' exists and is public
+- Check RLS policies on storage.objects
+
+**Metadata not extracted**
+- Ensure `music-metadata-browser` package is installed
+- MP3 must have valid ID3 tags
+- Falls back to filename if tags missing
+
+### Player Issues
+
+**Audio won't play**
+- Check audio_url in database is valid
+- Verify storage bucket is public
+- Check browser console for CORS errors
+- Test audio URL directly in browser
+
+**Images don't load**
+- Verify all images uploaded to `public/images/`
+- Check image paths match component code
+- Clear browser cache
+
+---
+
+## 🎓 Architecture Overview
+
+### Data Flow
+
+```
+User Action → Admin Page → Supabase Client → Database/Storage
+                ↓
+          React Query Cache
+                ↓
+          Index Page → VinylPlayer Component → Audio Playback
 ```
 
-### Changing the Center Label
+### Authentication Flow
 
-Replace the `labelImageUrl` prop:
-
-```tsx
-<VinylPlayer 
-  tracks={playlist} 
-  labelImageUrl="/images/your-custom-label.png" 
-/>
+```
+User Login → Supabase Auth → useAuth Hook → Session State
+                                    ↓
+                              useUserRole Hook
+                                    ↓
+                          Check user_roles table
+                                    ↓
+                            Conditional Rendering
 ```
 
-**Label Image Tips:**
-- Use square PNG images (e.g., 500x500px)
-- Transparent background works great
-- The label is automatically sized at 52% of the vinyl
-- Make it look like a real record label!
+### File Upload Flow
 
-### Adjusting Visual Layout (Calibration Mode)
-
-The component includes a built-in **Calibration Mode** for fine-tuning:
-
-1. Click the **Settings icon** (⚙️) in the top-right corner
-2. Use keyboard shortcuts to adjust positioning:
-   - Arrow keys: Move platter
-   - +/- : Resize platter
-   - R, T, W, H: Adjust tonearm position and size
-   - A, P: Adjust tonearm angles
-   - L: Adjust label size
-3. Changes auto-save to localStorage
-4. Click "Copy Config" to export your settings
-5. Apply custom config by editing `DEFAULT_CONFIG` in the component
-
-### Styling the Container
-
-The player has a dark gradient background by default. To customize:
-
-**Option A: Edit the component** (line 620 in VinylPlayer.tsx):
-```tsx
-<div className="min-h-screen bg-gradient-to-br from-your-color via-your-color to-your-color...">
 ```
-
-**Option B: Wrap it in a custom container**:
-```tsx
-<div className="bg-white p-8">
-  <VinylPlayer tracks={playlist} labelImageUrl="/images/label.png" />
-</div>
-```
-
-### Disabling Features
-
-Edit the `DEFAULT_CONFIG` object in `VinylPlayer.tsx`:
-
-```typescript
-const DEFAULT_CONFIG = {
-  // ... other settings
-  scrubEnabled: false,           // Disable progress bar scrubbing
-  showTrackInfo: false,          // Hide track title/artist
-  autoAdvance: false,            // Don't auto-play next track
-  keyboardShortcuts: false,      // Disable calibration keyboard shortcuts
-};
+Admin Selects File → Extract Metadata → Upload to Storage → Get Public URL
+                                                                    ↓
+                                                         Insert to Database
+                                                                    ↓
+                                                         React Query Invalidate
+                                                                    ↓
+                                                              UI Updates
 ```
 
 ---
 
-## 7️⃣ TROUBLESHOOTING
+## 📚 Additional Resources
 
-### Audio Not Playing
-- Check file paths in `playlist.ts` match actual files in `/public/audio/`
-- Ensure audio files are `.mp3` format
-- Check browser console for loading errors
+### Supabase Documentation
+- [Row Level Security](https://supabase.com/docs/guides/auth/row-level-security)
+- [Storage](https://supabase.com/docs/guides/storage)
+- [Auth](https://supabase.com/docs/guides/auth)
 
-### Images Not Showing
-- Verify all image files are in `/public/images/`
-- Check file names match exactly (case-sensitive)
-- Ensure images are `.png` format
+### React Query
+- [Queries](https://tanstack.com/query/latest/docs/react/guides/queries)
+- [Mutations](https://tanstack.com/query/latest/docs/react/guides/mutations)
 
-### Layout Issues
-- Enable **Calibration Mode** (⚙️ button)
-- Use keyboard shortcuts to adjust positioning
-- Copy the config and paste into `DEFAULT_CONFIG`
-
-### Tonearm Not Animating
-- Check that `tonearmPlayingAngle` is different from `tonearmRestAngle`
-- Verify `animationDuration` is set (default: 2 seconds)
-- Look for CSS conflicts with transitions
+### Music Metadata
+- [music-metadata-browser](https://github.com/Borewit/music-metadata-browser)
 
 ---
 
-## 8️⃣ ADVANCED FEATURES
+## 🤝 Contributing
 
-### Dynamic Playlists (from API/Database)
-
-```typescript
-// Instead of static playlist, fetch from API
-import { useEffect, useState } from "react";
-
-function MyPage() {
-  const [tracks, setTracks] = useState([]);
-
-  useEffect(() => {
-    fetch('/api/tracks')
-      .then(res => res.json())
-      .then(data => setTracks(data));
-  }, []);
-
-  if (!tracks.length) return <div>Loading...</div>;
-
-  return <VinylPlayer tracks={tracks} labelImageUrl="/images/label.png" />;
-}
-```
-
-### Supabase Integration
-
-```typescript
-// src/data/playlist.ts
-import { supabase } from '@/lib/supabase';
-
-export async function fetchPlaylist() {
-  const { data, error } = await supabase
-    .from('tracks')
-    .select('*')
-    .order('id');
-  
-  if (error) throw error;
-  return data;
-}
-```
-
-Then in your page component:
-
-```tsx
-import { useEffect, useState } from "react";
-import { fetchPlaylist } from "@/data/playlist";
-import VinylPlayer from "@/components/VinylPlayer";
-
-function Index() {
-  const [tracks, setTracks] = useState([]);
-
-  useEffect(() => {
-    fetchPlaylist().then(setTracks);
-  }, []);
-
-  return tracks.length > 0 ? (
-    <VinylPlayer tracks={tracks} labelImageUrl="/images/label.png" />
-  ) : (
-    <div>Loading tracks...</div>
-  );
-}
-```
+Found an issue or want to improve this guide?
+- Share feedback in Lovable community
+- Suggest improvements for database schema
+- Share your customizations
 
 ---
 
-## 9️⃣ LOVABLE PROMPT TEMPLATE
+## 📄 License
 
-Copy this entire message when adding VinylPlayer to a new Lovable project:
-
----
-
-**PROMPT START:**
-
-I want to add a vintage vinyl record player component to my project. I have the complete component code ready.
-
-**Step 1:** Create `src/components/VinylPlayer.tsx` with this code:
-
-[Paste complete VinylPlayer.tsx code from Section 1]
-
-**Step 2:** Create `src/data/playlist.ts` with this code:
-
-[Paste playlist.ts template from Section 2]
-
-**Step 3:** I'll upload these assets to the public folder:
-- Images to `/public/images/`: turntable-base.png, vinyl-record.png, tonearm.png, tonearm-animated.png, my-custom-label.png
-- Audio to `/public/audio/`: needle-drop.wav, needle-stuck.wav, and my music .mp3 files
-
-**Step 4:** Update my Index page to use the player:
-
-```tsx
-import VinylPlayer from "@/components/VinylPlayer";
-import { playlist } from "@/data/playlist";
-
-const Index = () => {
-  return <VinylPlayer tracks={playlist} labelImageUrl="/images/my-custom-label.png" />;
-};
-
-export default Index;
-```
-
-Please confirm all files are created correctly and the component is ready to use!
-
-**PROMPT END**
+This component and guide are provided as-is for use in Lovable projects.
 
 ---
 
-## 🎨 DESIGN NOTES
+## ✨ Credits
 
-- The player is fully responsive and works on mobile/tablet/desktop
-- Dark theme by default with gradient backgrounds
-- Smooth animations and transitions
-- Realistic vinyl spinning effect
-- Interactive progress bar for seeking
-- Keyboard shortcuts in calibration mode
-- Auto-saves calibration settings to localStorage
+- **Original Component**: VinylPlayer component
+- **Backend Integration**: Full-stack expansion with Lovable Cloud
+- **Metadata Extraction**: music-metadata-browser library
+- **UI Components**: shadcn/ui
+- **Backend**: Supabase (via Lovable Cloud)
 
 ---
 
-## 📝 CREDITS & LICENSE
+## 🎉 Enjoy Your Full-Stack Vinyl Player!
 
-This component was created as a reusable Lovable component. Feel free to customize and use in your projects!
+You now have a complete music management system with:
+- Beautiful vintage player interface
+- Secure admin dashboard
+- Cloud storage for audio files
+- Dynamic track loading
+- Role-based access control
+- Real-time updates
 
----
-
-## 🆘 NEED HELP?
-
-If you encounter issues:
-1. Enable Calibration Mode to adjust visual positioning
-2. Check browser console for error messages
-3. Verify all file paths match your uploaded assets
-4. Ensure audio files are valid .mp3 format
-5. Test with a single track first before adding full playlist
-
----
-
-**End of Installation Guide**
-
-Save this document and use it whenever you want to add the VinylPlayer to a new Lovable project!
+Happy spinning! 🎵
