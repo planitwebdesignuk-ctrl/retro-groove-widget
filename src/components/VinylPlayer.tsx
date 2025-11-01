@@ -12,6 +12,7 @@ interface Track {
 
 interface VinylPlayerProps {
   tracks: Track[];
+  labelImageUrl?: string; // Optional custom center label for vinyl record
 }
 
 // Centralized configuration for all visual elements
@@ -57,7 +58,7 @@ const STORAGE_KEY = 'vinyl-player-config-v8';
 
 // No need for synthetic sound generators - using real audio files
 
-const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
+const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png' }: VinylPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isStartingPlayback, setIsStartingPlayback] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
@@ -722,10 +723,22 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
                 animationDuration: `${config.vinylSpeed}s`,
               }}
             >
+              {/* Base vinyl disc */}
               <img
                 src="/images/vinyl-record.png"
                 alt="Vinyl Record"
                 className="w-full h-full object-contain"
+              />
+              {/* Center label overlay */}
+              <img
+                src={labelImageUrl}
+                alt="Record Label"
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain"
+                style={{
+                  width: '33%',
+                  height: '33%',
+                  zIndex: 2,
+                }}
               />
             </div>
           </div>
