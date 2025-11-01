@@ -46,7 +46,6 @@ const STORAGE_KEY = 'vinyl-player-config-v6';
 const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isStartingPlayback, setIsStartingPlayback] = useState(false);
-  const [snapTonearm, setSnapTonearm] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [calibrationMode, setCalibrationMode] = useState(false);
@@ -331,22 +330,16 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     const audio = audioRef.current;
     if (!audio) return;
     
-    // Set flags to ensure tonearm snaps to START position instantly
-    setSnapTonearm(true);
+    // Set flag to ensure tonearm uses START position
     setIsStartingPlayback(true);
     
     const startPlayback = () => {
       audio.play()
         .then(() => {
           setIsPlaying(true);
-          // Remove snap after first render to restore smooth transition
-          requestAnimationFrame(() => {
-            setSnapTonearm(false);
-          });
         })
         .catch((error) => {
           console.error('Playback failed:', error);
-          setSnapTonearm(false);
           setIsStartingPlayback(false);
         });
     };
@@ -415,12 +408,12 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     return start + within * span;
   };
 
-  // Reset isStartingPlayback after a short delay
+  // Reset isStartingPlayback after the slow animation completes
   useEffect(() => {
     if (isStartingPlayback && isPlaying) {
       const timer = setTimeout(() => {
         setIsStartingPlayback(false);
-      }, 200);
+      }, 1800); // Match the slow transition duration
       return () => clearTimeout(timer);
     }
   }, [isStartingPlayback, isPlaying]);
@@ -434,10 +427,10 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
       return config.angles.REST;
     }
     
-    // If snapping or just starting playback, use the track's start position
-    if (snapTonearm || isStartingPlayback) {
+    // If just starting playback, use the track's start position
+    if (isStartingPlayback) {
       if (currentTrackIndex === 0) {
-        return config.angles.START; // 16.0°
+        return config.angles.START; // 14.0°
       }
       const trackStart = trackFractions[currentTrackIndex]?.start || 0;
       return config.angles.START + (config.angles.END - config.angles.START) * trackStart;
@@ -553,7 +546,9 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
           <div
             className={cn(
               "absolute",
-              snapTonearm ? "transition-none" : "transition-transform duration-700 ease-in-out"
+              isStartingPlayback 
+                ? "transition-transform duration-[1800ms] ease-out" 
+                : "transition-transform duration-700 ease-in-out"
             )}
             style={{
               right: `${config.tonearm.rightPct}%`,

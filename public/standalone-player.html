@@ -93,10 +93,6 @@
       /* Position and transform-origin set dynamically via JavaScript */
     }
 
-    .tonearm.no-transition {
-      transition: none !important;
-    }
-
     .tonearm img {
       width: 100%;
       height: 100%;
@@ -721,7 +717,6 @@
     let currentTrackIndex = 0;
     let isPlaying = false;
     let isStartingPlayback = false;
-    let snapTonearm = false;
 
     // ============ FUNCTIONS ============
     function loadTrack(index) {
@@ -736,12 +731,11 @@
     }
 
     function playTrack() {
-      // Set flags to ensure tonearm snaps to START position instantly
-      snapTonearm = true;
+      // Set flag to ensure tonearm uses START position
       isStartingPlayback = true;
       
-      // Disable transition temporarily
-      tonearm.classList.add('no-transition');
+      // Apply slow transition for initial move to vinyl
+      tonearm.style.transition = 'transform 1.8s ease-out';
       
       const startPlayback = () => {
         audio.play()
@@ -753,22 +747,16 @@
             stopBtn.style.display = 'block';
             updateTonearm();
             
-            // Re-enable transition after snap completes
-            requestAnimationFrame(() => {
-              snapTonearm = false;
-              tonearm.classList.remove('no-transition');
-            });
-            
-            // Reset isStartingPlayback after a short delay
+            // Reset to normal transition speed after animation completes
             setTimeout(() => {
               isStartingPlayback = false;
-            }, 200);
+              tonearm.style.transition = 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+            }, 1800);
           })
           .catch((error) => {
             console.error('Playback failed:', error);
-            snapTonearm = false;
             isStartingPlayback = false;
-            tonearm.classList.remove('no-transition');
+            tonearm.style.transition = 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
           });
       };
       
@@ -846,10 +834,10 @@
       // When not playing, tonearm returns to REST position
       if (!isPlaying) {
         angle = CONFIG.angles.REST;
-      } else if (snapTonearm || isStartingPlayback) {
-        // If snapping or just starting playback, use the track's start position
+      } else if (isStartingPlayback) {
+        // If just starting playback, use the track's start position
         if (currentTrackIndex === 0) {
-          angle = CONFIG.angles.START; // 16.0°
+          angle = CONFIG.angles.START; // 14.0°
         } else {
           const fractions = computeTrackFractions();
           const trackStart = fractions[currentTrackIndex]?.start || 0;
