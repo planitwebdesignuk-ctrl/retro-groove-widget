@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export function useUserRole(userId: string | undefined) {
-  return useQuery({
+  const enabled = !!userId;
+  const query = useQuery({
     queryKey: ['user-role', userId],
     queryFn: async () => {
       if (!userId) return null;
@@ -20,6 +21,11 @@ export function useUserRole(userId: string | undefined) {
       
       return data?.role as 'admin' | 'user' | null;
     },
-    enabled: !!userId
+    enabled
   });
+
+  return {
+    ...query,
+    isLoading: enabled ? query.isLoading : true
+  };
 }

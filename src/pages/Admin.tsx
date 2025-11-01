@@ -54,7 +54,7 @@ export default function Admin() {
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
-    if (!roleLoading && role !== 'admin') {
+    if (!authLoading && user && !roleLoading && role !== 'admin') {
       toast({
         title: 'Access denied',
         description: 'You must be an admin to access this page.',
@@ -62,7 +62,7 @@ export default function Admin() {
       });
       navigate('/');
     }
-  }, [role, roleLoading, navigate]);
+  }, [user, role, roleLoading, authLoading, navigate]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -138,7 +138,7 @@ export default function Admin() {
     }
   };
 
-  if (authLoading || roleLoading) {
+  if (authLoading || (user && roleLoading)) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
