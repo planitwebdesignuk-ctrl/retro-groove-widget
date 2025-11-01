@@ -76,7 +76,7 @@
     }
 
     .vinyl.spinning {
-      animation: spin 22s linear infinite;
+      animation: spin 20s linear infinite;
     }
 
     @keyframes spin {
@@ -565,12 +565,14 @@
           <div id="tonearmInfo">Tonearm: R:0% T:0% W:0% H:0%</div>
           <div id="pivotInfo">Pivot: X:0% Y:0%</div>
           <div id="anglesInfo">Angles: REST:0° START:0° END:0°</div>
+          <div id="vinylSpeedInfo">Vinyl Speed: 20.0s per rotation</div>
         </div>
         <div class="controls-help">
           <div>Tab: Switch target (<span id="currentTarget">platter</span>)</div>
           <div>Arrows: Move/Adjust (Shift=1.0, Alt=0.02)</div>
           <div>[ ]: Tonearm Height/Size/END angle</div>
           <div>+/-: Tonearm Width</div>
+          <div>Vinyl: Left/Right arrows to adjust speed</div>
           <div>ESC: Exit calibration</div>
         </div>
         <div class="reference-controls">
@@ -617,6 +619,7 @@
         START: 14.0,
         END: 30.9,
       },
+      vinylSpeed: 20, // seconds per rotation
     };
 
     const STORAGE_KEY = 'vinyl-player-config-v6';
@@ -974,7 +977,7 @@
           break;
         case 'Tab':
           e.preventDefault();
-          const targets = ['platter', 'tonearm', 'pivot', 'angles'];
+          const targets = ['platter', 'tonearm', 'pivot', 'angles', 'vinyl'];
           const currentIndex = targets.indexOf(adjustTarget);
           adjustTarget = targets[(currentIndex + 1) % targets.length];
           updateCalibrationUI();
@@ -985,6 +988,7 @@
           if (adjustTarget === 'tonearm') CONFIG.tonearm.rightPct = Math.max(0, CONFIG.tonearm.rightPct + step);
           if (adjustTarget === 'pivot') CONFIG.tonearm.pivotXPct = Math.max(0, CONFIG.tonearm.pivotXPct - step);
           if (adjustTarget === 'angles') CONFIG.angles.REST -= step;
+          if (adjustTarget === 'vinyl') CONFIG.vinylSpeed = Math.max(1, CONFIG.vinylSpeed - step);
           saveAndUpdateConfig();
           break;
         case 'ArrowRight':
@@ -993,6 +997,7 @@
           if (adjustTarget === 'tonearm') CONFIG.tonearm.rightPct = Math.max(0, CONFIG.tonearm.rightPct - step);
           if (adjustTarget === 'pivot') CONFIG.tonearm.pivotXPct = Math.min(100, CONFIG.tonearm.pivotXPct + step);
           if (adjustTarget === 'angles') CONFIG.angles.REST += step;
+          if (adjustTarget === 'vinyl') CONFIG.vinylSpeed = Math.min(100, CONFIG.vinylSpeed + step);
           saveAndUpdateConfig();
           break;
         case 'ArrowUp':
@@ -1066,6 +1071,9 @@
         tonearmImg.style.transformOrigin = `${CONFIG.tonearm.pivotXPct}% ${CONFIG.tonearm.pivotYPct}%`;
       }
       
+      // Update vinyl speed
+      vinyl.style.animationDuration = `${CONFIG.vinylSpeed}s`;
+      
       updateTonearm();
 
       if (calibrationMode) {
@@ -1094,11 +1102,13 @@
         `Pivot: X:${CONFIG.tonearm.pivotXPct.toFixed(1)}% Y:${CONFIG.tonearm.pivotYPct.toFixed(1)}%`;
       document.getElementById('anglesInfo').textContent = 
         `Angles: REST:${CONFIG.angles.REST.toFixed(1)}° START:${CONFIG.angles.START.toFixed(1)}° END:${CONFIG.angles.END.toFixed(1)}°`;
+      document.getElementById('vinylSpeedInfo').textContent = 
+        `Vinyl Speed: ${CONFIG.vinylSpeed.toFixed(1)}s per rotation`;
       document.getElementById('currentTarget').textContent = adjustTarget;
 
       // Highlight active target
       document.querySelectorAll('.config-values > div').forEach((el, i) => {
-        const targets = ['platter', 'tonearm', 'pivot', 'angles'];
+        const targets = ['platter', 'tonearm', 'pivot', 'angles', 'vinyl'];
         el.classList.toggle('active', targets[i] === adjustTarget);
       });
     }

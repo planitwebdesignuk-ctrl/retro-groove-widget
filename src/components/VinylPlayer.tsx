@@ -38,6 +38,7 @@ const DEFAULT_CONFIG = {
     START: 14.0,
     END: 30.9,
   },
+  vinylSpeed: 20, // seconds per rotation
 };
 
 const STORAGE_KEY = 'vinyl-player-config-v6';
@@ -64,7 +65,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   });
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [referenceOpacity, setReferenceOpacity] = useState(50);
-  const [adjustTarget, setAdjustTarget] = useState<'platter' | 'tonearm' | 'pivot' | 'angles'>('platter');
+  const [adjustTarget, setAdjustTarget] = useState<'platter' | 'tonearm' | 'pivot' | 'angles' | 'vinyl'>('platter');
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationRef = useRef<number>();
   const baseImageRef = useRef<HTMLImageElement>(null);
@@ -152,7 +153,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
           break;
         case 'Tab':
           e.preventDefault();
-          const targets: typeof adjustTarget[] = ['platter', 'tonearm', 'pivot', 'angles'];
+          const targets: typeof adjustTarget[] = ['platter', 'tonearm', 'pivot', 'angles', 'vinyl'];
           const currentIndex = targets.indexOf(adjustTarget);
           setAdjustTarget(targets[(currentIndex + 1) % targets.length]);
           break;
@@ -162,6 +163,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
           if (adjustTarget === 'tonearm') updated.tonearm.rightPct = Math.max(0, updated.tonearm.rightPct + step);
           if (adjustTarget === 'pivot') updated.tonearm.pivotXPct = Math.max(0, updated.tonearm.pivotXPct - step);
           if (adjustTarget === 'angles') updated.angles.REST -= step;
+          if (adjustTarget === 'vinyl') updated.vinylSpeed = Math.max(1, updated.vinylSpeed - step);
           break;
         case 'ArrowRight':
           e.preventDefault();
@@ -169,6 +171,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
           if (adjustTarget === 'tonearm') updated.tonearm.rightPct = Math.max(0, updated.tonearm.rightPct - step);
           if (adjustTarget === 'pivot') updated.tonearm.pivotXPct = Math.min(100, updated.tonearm.pivotXPct + step);
           if (adjustTarget === 'angles') updated.angles.REST += step;
+          if (adjustTarget === 'vinyl') updated.vinylSpeed = Math.min(100, updated.vinylSpeed + step);
           break;
         case 'ArrowUp':
           e.preventDefault();
@@ -521,6 +524,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
               )}
               style={{
                 animationPlayState: isPlaying ? "running" : "paused",
+                animationDuration: `${config.vinylSpeed}s`,
               }}
             >
               <img
@@ -626,6 +630,9 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
                   <div className={adjustTarget === 'angles' ? 'text-yellow-400 font-bold' : ''}>
                     Angles: REST:{config.angles.REST.toFixed(1)}° START:{config.angles.START.toFixed(1)}° END:{config.angles.END.toFixed(1)}°
                   </div>
+                  <div className={adjustTarget === 'vinyl' ? 'text-yellow-400 font-bold' : ''}>
+                    Vinyl Speed: {config.vinylSpeed.toFixed(1)}s per rotation
+                  </div>
                 </div>
 
                 <div className="mb-3 text-[10px] space-y-1 text-gray-300">
@@ -633,6 +640,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
                   <div>Arrows: Move/Adjust (Shift=1.0, Alt=0.02)</div>
                   <div>[ ]: Tonearm Length/Size/END angle</div>
                   <div>+/-: Tonearm Width</div>
+                  <div>Vinyl: Left/Right arrows to adjust speed</div>
                   <div>ESC: Exit calibration</div>
                 </div>
 
