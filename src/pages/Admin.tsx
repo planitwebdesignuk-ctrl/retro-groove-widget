@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,6 +32,7 @@ import {
 
 export default function Admin() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, loading: authLoading } = useAuth();
   const { data: role, isLoading: roleLoading } = useUserRole(user?.id);
   const { data: tracks, isLoading: tracksLoading } = useTracks();
@@ -76,7 +78,7 @@ export default function Admin() {
 
   const handleDelete = async () => {
     if (selectedTrack) {
-      await deleteTrack.mutateAsync(selectedTrack.id);
+      await deleteTrack.mutateAsync(selectedTrack.dbId);
       setDeleteDialogOpen(false);
       setSelectedTrack(null);
     }
@@ -85,7 +87,7 @@ export default function Admin() {
   const handleEdit = async () => {
     if (selectedTrack) {
       await updateTrack.mutateAsync({
-        id: selectedTrack.id,
+        id: selectedTrack.dbId,
         title: editTitle,
         artist: editArtist,
       });
@@ -127,6 +129,7 @@ export default function Admin() {
 
       if (insertError) throw insertError;
 
+      await queryClient.invalidateQueries({ queryKey: ['tracks'] });
       toast({ title: 'Track added successfully!' });
       setAddDialogOpen(false);
       setNewTitle('');
@@ -146,6 +149,8 @@ export default function Admin() {
   const handleBulkUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
+    
+    console.log('Bulk upload triggered, files:', files.length);
 
     // Filter only MP3 files
     const mp3Files = Array.from(files).filter(file => 
@@ -227,6 +232,9 @@ export default function Admin() {
     setIsUploading(false);
     setUploadProgress({ current: 0, total: 0 });
 
+    // Refresh the track list
+    await queryClient.invalidateQueries({ queryKey: ['tracks'] });
+
     // Reset file inputs
     if (folderInputRef.current) {
       folderInputRef.current.value = '';
@@ -274,7 +282,7 @@ export default function Admin() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>All Tracks</CardTitle>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <Button 
                 onClick={() => folderInputRef.current?.click()}
                 disabled={isUploading}

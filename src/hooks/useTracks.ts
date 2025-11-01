@@ -13,6 +13,7 @@ export interface DbTrack {
 
 export interface Track {
   id: number;
+  dbId: string;
   title: string;
   artist: string;
   audioUrl: string;
@@ -32,6 +33,7 @@ export function useTracks() {
       // Transform to match VinylPlayer interface
       return (data as DbTrack[]).map((track, index) => ({
         id: index + 1,
+        dbId: track.id,
         title: track.title,
         artist: track.artist,
         audioUrl: track.audio_url
