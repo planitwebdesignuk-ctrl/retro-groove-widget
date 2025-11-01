@@ -34,9 +34,9 @@ const DEFAULT_CONFIG = {
     pivotYPct: 9.8,
   },
   angles: {
-    REST: -33,
-    START: 4,
-    END: 22,
+    REST: -0.6,
+    START: 25.6,
+    END: 30.9,
   },
 };
 
