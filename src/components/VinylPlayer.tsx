@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useMemo } from "react";
-import { Play, Square, SkipBack, SkipForward, Upload, Copy, RotateCcw } from "lucide-react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { Play, Square, SkipBack, SkipForward, Upload, Copy, RotateCcw, Rewind, FastForward } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +16,7 @@ interface VinylPlayerProps {
 
 // Centralized configuration for all visual elements
 const DEFAULT_CONFIG = {
-  configVersion: 7,
+  configVersion: 8,
   base: {
     aspectRatio: 1.18, // Updated after image loads
   },
@@ -45,9 +45,54 @@ const DEFAULT_CONFIG = {
     stopEasing: 'cubic-bezier(0.4, 0, 0.2, 1)',
   },
   vinylSpeed: 5, // seconds per rotation
+  scrubbing: {
+    enabled: true,
+    showHandle: true,
+    scratchSoundsEnabled: true,
+    skipSeconds: 10,
+  },
 };
 
-const STORAGE_KEY = 'vinyl-player-config-v7';
+const STORAGE_KEY = 'vinyl-player-config-v8';
+
+// Sound effect generators
+const createNeedleDropSound = () => {
+  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const duration = 0.8;
+  const sampleRate = audioContext.sampleRate;
+  const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+  const data = buffer.getChannelData(0);
+  
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sampleRate;
+    const envelope = Math.exp(-t * 8);
+    data[i] = (Math.random() * 2 - 1) * 0.15 * envelope + 
+              Math.sin(t * 150) * 0.1 * envelope;
+  }
+  
+  return buffer;
+};
+
+const createRunoutSound = () => {
+  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const duration = 1.2;
+  const sampleRate = audioContext.sampleRate;
+  const buffer = audioContext.createBuffer(1, sampleRate * duration, sampleRate);
+  const data = buffer.getChannelData(0);
+  
+  const clickInterval = sampleRate * 1.2; // One click per rotation
+  for (let i = 0; i < data.length; i++) {
+    const position = i % clickInterval;
+    if (position < sampleRate * 0.02) {
+      const envelope = Math.exp(-position / (sampleRate * 0.02) * 8);
+      data[i] = (Math.random() * 2 - 1) * 0.3 * envelope;
+    } else {
+      data[i] = (Math.random() * 2 - 1) * 0.02;
+    }
+  }
+  
+  return buffer;
+};
 
 const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -57,6 +102,9 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const [calibrationMode, setCalibrationMode] = useState(false);
   const [aspectRatio, setAspectRatio] = useState(DEFAULT_CONFIG.base.aspectRatio);
   const [trackDurations, setTrackDurations] = useState<number[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const [isLastTrackFinished, setIsLastTrackFinished] = useState(false);
   const [config, setConfig] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -75,8 +123,76 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const animationRef = useRef<number>();
   const baseImageRef = useRef<HTMLImageElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
+  const needleDropSoundRef = useRef<AudioBuffer | null>(null);
+  const runoutSoundRef = useRef<AudioBuffer | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const runoutSourceRef = useRef<AudioBufferSourceNode | null>(null);
 
   const currentTrack = tracks[currentTrackIndex];
+
+  // Initialize audio context and sound effects
+  useEffect(() => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = audioContext;
+      needleDropSoundRef.current = createNeedleDropSound();
+      runoutSoundRef.current = createRunoutSound();
+    } catch (error) {
+      console.error('Failed to initialize audio context:', error);
+    }
+    
+    return () => {
+      if (audioContextRef.current?.state !== 'closed') {
+        audioContextRef.current?.close();
+      }
+    };
+  }, []);
+
+  const playNeedleDropSound = useCallback(() => {
+    if (!config.scrubbing.scratchSoundsEnabled || !audioContextRef.current || !needleDropSoundRef.current) return;
+    
+    try {
+      const source = audioContextRef.current.createBufferSource();
+      source.buffer = needleDropSoundRef.current;
+      source.connect(audioContextRef.current.destination);
+      source.start(0);
+    } catch (error) {
+      console.error('Failed to play needle drop sound:', error);
+    }
+  }, [config.scrubbing.scratchSoundsEnabled]);
+
+  const playRunoutSound = useCallback(() => {
+    if (!config.scrubbing.scratchSoundsEnabled || !audioContextRef.current || !runoutSoundRef.current) return;
+    
+    try {
+      // Stop existing runout sound if playing
+      if (runoutSourceRef.current) {
+        runoutSourceRef.current.stop();
+        runoutSourceRef.current = null;
+      }
+      
+      const source = audioContextRef.current.createBufferSource();
+      source.buffer = runoutSoundRef.current;
+      source.loop = true;
+      source.connect(audioContextRef.current.destination);
+      source.start(0);
+      runoutSourceRef.current = source;
+    } catch (error) {
+      console.error('Failed to play runout sound:', error);
+    }
+  }, [config.scrubbing.scratchSoundsEnabled]);
+
+  const stopRunoutSound = useCallback(() => {
+    if (runoutSourceRef.current) {
+      try {
+        runoutSourceRef.current.stop();
+        runoutSourceRef.current = null;
+      } catch (error) {
+        console.error('Failed to stop runout sound:', error);
+      }
+    }
+  }, []);
 
   // Check if all durations are loaded
   const durationsReady = useMemo(
@@ -288,14 +404,16 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     };
 
     const handleEnded = () => {
-      // Auto-advance to next track, wrapping to track 1 at end
-      if (currentTrackIndex < tracks.length - 1) {
-        setCurrentTrackIndex(currentTrackIndex + 1);
+      // Check if this is the last track
+      if (currentTrackIndex === tracks.length - 1) {
+        // Last track finished - play runout sound
+        setIsLastTrackFinished(true);
+        setIsPlaying(false);
+        playRunoutSound();
       } else {
-        // Wrap back to first track
-        setCurrentTrackIndex(0);
+        // Auto-advance to next track
+        setCurrentTrackIndex(currentTrackIndex + 1);
       }
-      // Keep playing
     };
 
     const handleLoadedMetadata = () => {
@@ -341,12 +459,20 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     const audio = audioRef.current;
     if (!audio) return;
     
+    // Stop runout sound if it's playing
+    if (isLastTrackFinished) {
+      stopRunoutSound();
+      setIsLastTrackFinished(false);
+    }
+    
     // Set flags to trigger tonearm animation and delayed audio playback
     setIsStartingPlayback(true);
     setIsPlaying(true); // Start vinyl spinning immediately
   };
 
   const handleStop = () => {
+    stopRunoutSound();
+    setIsLastTrackFinished(false);
     setIsPlaying(false);
     const audio = audioRef.current;
     if (audio) {
@@ -409,6 +535,9 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     // Stop current playback and reset
     audio.pause();
     
+    // Play needle drop sound
+    playNeedleDropSound();
+    
     // Wait for tonearm animation, then start playing
     const playTimer = setTimeout(() => {
       audio.play().catch((error) => {
@@ -427,7 +556,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
       clearTimeout(playTimer);
       clearTimeout(resetTimer);
     };
-  }, [isStartingPlayback, isPlaying, currentTrackIndex, config.tonearmSpeed.playMs]);
+  }, [isStartingPlayback, isPlaying, currentTrackIndex, config.tonearmSpeed.playMs, playNeedleDropSound]);
 
   // Calculate tonearm rotation based on global fraction
   const getTonearmRotation = () => {
@@ -473,6 +602,101 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   };
 
   const tonearmRotation = getTonearmRotation();
+
+  // Progress bar interaction handlers
+  const handleProgressBarClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!config.scrubbing.enabled || !progressBarRef.current) return;
+    
+    const audio = audioRef.current;
+    if (!audio || !audio.duration) return;
+    
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+    const newTime = percentage * audio.duration;
+    
+    audio.currentTime = newTime;
+    setProgress(percentage * 100);
+  }, [config.scrubbing.enabled]);
+
+  const handleProgressBarMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!progressBarRef.current) return;
+    
+    const audio = audioRef.current;
+    if (!audio || !audio.duration) return;
+    
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, mouseX / rect.width));
+    setHoverTime(percentage * audio.duration);
+  }, []);
+
+  const handleProgressBarMouseLeave = useCallback(() => {
+    setHoverTime(null);
+  }, []);
+
+  const handleScrubberMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    
+    const audio = audioRef.current;
+    const wasPlaying = isPlaying;
+    
+    if (wasPlaying) {
+      audio?.pause();
+    }
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!progressBarRef.current || !audio || !audio.duration) return;
+      
+      const rect = progressBarRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const percentage = Math.max(0, Math.min(1, mouseX / rect.width));
+      const newTime = percentage * audio.duration;
+      
+      audio.currentTime = newTime;
+      setProgress(percentage * 100);
+    };
+    
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      if (wasPlaying) {
+        audio?.play();
+      }
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, isPlaying]);
+
+  const handleSkipBackward = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = Math.max(0, audio.currentTime - config.scrubbing.skipSeconds);
+  }, [config.scrubbing.skipSeconds]);
+
+  const handleSkipForward = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + config.scrubbing.skipSeconds);
+  }, [config.scrubbing.skipSeconds]);
+
+  const formatTime = (seconds: number) => {
+    if (!isFinite(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Debug tonearm transition timing
   useEffect(() => {
@@ -743,21 +967,71 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
 
           {/* Progress Bar */}
           <div className="mb-6">
-            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
+            <div className="relative">
+              <div 
+                ref={progressBarRef}
+                className={cn(
+                  "h-3 w-full overflow-visible rounded-full bg-muted relative group",
+                  config.scrubbing.enabled && "cursor-pointer"
+                )}
+                onClick={handleProgressBarClick}
+                onMouseMove={handleProgressBarMouseMove}
+                onMouseLeave={handleProgressBarMouseLeave}
+              >
+                <div
+                  className="h-full bg-primary transition-all rounded-full"
+                  style={{ width: `${progress}%` }}
+                />
+                
+                {/* Scrubber Handle */}
+                {config.scrubbing.showHandle && (
+                  <div
+                    className={cn(
+                      "absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-primary rounded-full shadow-lg transition-transform",
+                      "group-hover:scale-125",
+                      isDragging && "scale-150 shadow-xl"
+                    )}
+                    style={{ left: `${progress}%`, transform: `translateX(-50%) translateY(-50%)` }}
+                    onMouseDown={handleScrubberMouseDown}
+                  />
+                )}
+                
+                {/* Hover Time Tooltip */}
+                {hoverTime !== null && !isDragging && (
+                  <div
+                    className="absolute -top-8 bg-popover text-popover-foreground px-2 py-1 rounded text-xs pointer-events-none"
+                    style={{ left: `${(hoverTime / (audioRef.current?.duration || 1)) * 100}%`, transform: 'translateX(-50%)' }}
+                  >
+                    {formatTime(hoverTime)}
+                  </div>
+                )}
+              </div>
+              
+              {/* Time Display */}
+              <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                <span>{formatTime((audioRef.current?.currentTime || 0))}</span>
+                <span>{formatTime((audioRef.current?.duration || 0))}</span>
+              </div>
             </div>
           </div>
 
           {/* Playback Controls */}
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSkipBackward}
+              className="h-10 w-10 rounded-full transition-all hover:scale-110 active:scale-95"
+              aria-label="Skip backward 10 seconds"
+            >
+              <Rewind className="h-4 w-4" />
+            </Button>
+            
             <Button
               variant="secondary"
               size="icon"
               onClick={handlePrevious}
-              className="h-12 w-12 rounded-full"
+              className="h-12 w-12 rounded-full transition-all hover:scale-110 active:scale-95"
               aria-label="Previous track"
             >
               <SkipBack className="h-5 w-5" />
@@ -767,7 +1041,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
               <Button
                 size="icon"
                 onClick={handlePlay}
-                className="h-16 w-16 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                className="h-16 w-16 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:scale-110 active:scale-95 shadow-lg"
                 aria-label="Play"
               >
                 <Play className="h-7 w-7 translate-x-0.5" />
@@ -776,7 +1050,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
               <Button
                 size="icon"
                 onClick={handleStop}
-                className="h-16 w-16 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                className="h-16 w-16 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:scale-110 active:scale-95 shadow-lg"
                 aria-label="Stop"
               >
                 <Square className="h-7 w-7" />
@@ -787,12 +1061,29 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
               variant="secondary"
               size="icon"
               onClick={handleNext}
-              className="h-12 w-12 rounded-full"
+              className="h-12 w-12 rounded-full transition-all hover:scale-110 active:scale-95"
               aria-label="Next track"
             >
               <SkipForward className="h-5 w-5" />
             </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSkipForward}
+              className="h-10 w-10 rounded-full transition-all hover:scale-110 active:scale-95"
+              aria-label="Skip forward 10 seconds"
+            >
+              <FastForward className="h-4 w-4" />
+            </Button>
           </div>
+          
+          {/* Runout indicator */}
+          {isLastTrackFinished && (
+            <div className="mt-4 text-center text-sm text-muted-foreground animate-pulse">
+              End of record - Click play to restart
+            </div>
+          )}
 
           {/* Track List */}
           <div className="mt-6 space-y-2">
