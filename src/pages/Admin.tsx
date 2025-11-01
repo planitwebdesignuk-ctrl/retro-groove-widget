@@ -10,7 +10,7 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useTracks, useDeleteTrack, useUpdateTrack } from '@/hooks/useTracks';
-import { Pencil, Trash2, LogOut, Plus, FolderUp } from 'lucide-react';
+import { Pencil, Trash2, LogOut, Plus, FolderUp, Upload } from 'lucide-react';
 import { extractMp3Metadata } from '@/utils/mp3Metadata';
 import {
   AlertDialog,
@@ -50,6 +50,7 @@ export default function Admin() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const multipleFilesInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -226,9 +227,12 @@ export default function Admin() {
     setIsUploading(false);
     setUploadProgress({ current: 0, total: 0 });
 
-    // Reset file input
+    // Reset file inputs
     if (folderInputRef.current) {
       folderInputRef.current.value = '';
+    }
+    if (multipleFilesInputRef.current) {
+      multipleFilesInputRef.current.value = '';
     }
 
     // Show results
@@ -277,7 +281,15 @@ export default function Admin() {
                 variant="secondary"
               >
                 <FolderUp className="mr-2 h-4 w-4" />
-                {isUploading ? `Uploading ${uploadProgress.current}/${uploadProgress.total}...` : 'Bulk Upload'}
+                {isUploading ? `Uploading ${uploadProgress.current}/${uploadProgress.total}...` : 'Bulk Upload Folder'}
+              </Button>
+              <Button 
+                onClick={() => multipleFilesInputRef.current?.click()}
+                disabled={isUploading}
+                variant="secondary"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Select Multiple Files
               </Button>
               <Button onClick={() => setAddDialogOpen(true)} disabled={isUploading}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -289,6 +301,14 @@ export default function Admin() {
                 accept=".mp3"
                 multiple
                 {...({ webkitdirectory: '', directory: '' } as any)}
+                onChange={handleBulkUpload}
+                className="hidden"
+              />
+              <input
+                ref={multipleFilesInputRef}
+                type="file"
+                accept=".mp3"
+                multiple
                 onChange={handleBulkUpload}
                 className="hidden"
               />
