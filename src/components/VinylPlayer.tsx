@@ -548,7 +548,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
               "absolute",
               isStartingPlayback 
                 ? "transition-transform duration-[1800ms] ease-out" 
-                : "transition-transform duration-700 ease-in-out"
+                : "transition-transform duration-[800ms] ease-in-out"
             )}
             style={{
               right: `${config.tonearm.rightPct}%`,
