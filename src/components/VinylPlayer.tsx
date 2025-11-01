@@ -333,46 +333,17 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     audio.currentTime = 0;
     setProgress(0);
     
-    if (isPlaying) {
-      // Use promise-based play to ensure audio is ready
-      audio.play().catch((error) => {
-        console.error('Auto-play failed on track change:', error);
-        setIsPlaying(false);
-      });
-    }
+    // Don't auto-play here - let the play sequence handle it with proper tonearm animation
+    // The handleNext/handlePrevious will set isStartingPlayback if needed
   }, [currentTrackIndex]);
 
   const handlePlay = () => {
     const audio = audioRef.current;
     if (!audio) return;
     
-    // Set flag to ensure tonearm uses START position and start visual effects immediately
+    // Set flags to trigger tonearm animation and delayed audio playback
     setIsStartingPlayback(true);
     setIsPlaying(true); // Start vinyl spinning immediately
-    
-    const startAudioPlayback = () => {
-      // Delay audio playback until tonearm reaches the vinyl
-      setTimeout(() => {
-        audio.play()
-          .catch((error) => {
-            console.error('Playback failed:', error);
-            setIsStartingPlayback(false);
-            setIsPlaying(false);
-          });
-      }, config.tonearmSpeed.playMs); // Wait for tonearm animation to complete
-    };
-    
-    // Wait for audio to be ready before starting the delayed playback
-    if (audio.readyState >= 3) { // HAVE_FUTURE_DATA or better
-      startAudioPlayback();
-    } else {
-      const handleCanPlay = () => {
-        audio.removeEventListener('canplay', handleCanPlay);
-        startAudioPlayback();
-      };
-      audio.addEventListener('canplay', handleCanPlay);
-      audio.load(); // Ensure loading starts
-    }
   };
 
   const handleStop = () => {
@@ -388,8 +359,10 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     const wasPlaying = isPlaying;
     if (currentTrackIndex > 0) {
       setCurrentTrackIndex(currentTrackIndex - 1);
-      // Keep playing state if it was playing
-      if (!wasPlaying) {
+      // If was playing, trigger tonearm animation to new track
+      if (wasPlaying) {
+        setIsStartingPlayback(true);
+      } else {
         setIsPlaying(false);
       }
     } else {
@@ -410,8 +383,10 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
       // Wrap to first track
       setCurrentTrackIndex(0);
     }
-    // Keep playing state if it was playing
-    if (!wasPlaying) {
+    // If was playing, trigger tonearm animation to new track
+    if (wasPlaying) {
+      setIsStartingPlayback(true);
+    } else {
       setIsPlaying(false);
     }
   };
@@ -426,15 +401,33 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     return start + within * span;
   };
 
-  // Reset isStartingPlayback after the slow animation completes
+  // Handle delayed audio playback when starting or changing tracks
   useEffect(() => {
-    if (isStartingPlayback && isPlaying) {
-      const timer = setTimeout(() => {
+    const audio = audioRef.current;
+    if (!audio || !isStartingPlayback || !isPlaying) return;
+
+    // Stop current playback and reset
+    audio.pause();
+    
+    // Wait for tonearm animation, then start playing
+    const playTimer = setTimeout(() => {
+      audio.play().catch((error) => {
+        console.error('Playback failed during track change:', error);
+        setIsPlaying(false);
         setIsStartingPlayback(false);
-      }, config.tonearmSpeed.playMs);
-      return () => clearTimeout(timer);
-    }
-  }, [isStartingPlayback, isPlaying, config.tonearmSpeed.playMs]);
+      });
+    }, config.tonearmSpeed.playMs);
+
+    // Reset flag after animation completes
+    const resetTimer = setTimeout(() => {
+      setIsStartingPlayback(false);
+    }, config.tonearmSpeed.playMs);
+
+    return () => {
+      clearTimeout(playTimer);
+      clearTimeout(resetTimer);
+    };
+  }, [isStartingPlayback, isPlaying, currentTrackIndex, config.tonearmSpeed.playMs]);
 
   // Calculate tonearm rotation based on global fraction
   const getTonearmRotation = () => {

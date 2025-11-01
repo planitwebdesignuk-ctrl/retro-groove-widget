@@ -810,23 +810,39 @@
     function prevTrack() {
       const wasPlaying = isPlaying;
       
+      // Stop playback before changing tracks
+      if (wasPlaying) {
+        audio.pause();
+        isPlaying = false;
+      }
+      
       if (currentTrackIndex > 0) {
         currentTrackIndex--;
         loadTrack(currentTrackIndex);
-        // Keep playing if it was playing
+        // Restart with full tonearm animation if it was playing
         if (wasPlaying) {
-          setTimeout(() => playTrack(), 50); // Small delay to let track load
+          playTrack();
         }
       } else {
         // Stay at track 0, just reset position
         audio.currentTime = 0;
         progressFill.style.width = '0%';
         updateTonearm();
+        // Restart if was playing
+        if (wasPlaying) {
+          playTrack();
+        }
       }
     }
 
     function nextTrack() {
       const wasPlaying = isPlaying;
+      
+      // Stop playback before changing tracks
+      if (wasPlaying) {
+        audio.pause();
+        isPlaying = false;
+      }
       
       if (currentTrackIndex < tracks.length - 1) {
         currentTrackIndex++;
@@ -835,9 +851,9 @@
         currentTrackIndex = 0;
       }
       loadTrack(currentTrackIndex);
-      // Keep playing if it was playing
+      // Restart with full tonearm animation if it was playing
       if (wasPlaying) {
-        setTimeout(() => playTrack(), 50); // Small delay to let track load
+        playTrack();
       }
     }
 
