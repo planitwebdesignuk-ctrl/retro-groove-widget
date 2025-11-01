@@ -40,7 +40,7 @@ const DEFAULT_CONFIG = {
   },
   tonearmSpeed: {
     playMs: 1800,
-    stopMs: 800,
+    stopMs: 1200,
     playEasing: 'ease-out',
     stopEasing: 'cubic-bezier(0.4, 0, 0.2, 1)',
   },
