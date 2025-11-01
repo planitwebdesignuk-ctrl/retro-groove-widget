@@ -45,20 +45,23 @@
       border-radius: 1.5rem;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
       overflow: hidden;
+      aspect-ratio: 1.18;
     }
 
     .turntable-base {
       width: 100%;
-      height: auto;
+      height: 100%;
       display: block;
+      object-fit: cover;
     }
 
     .platter {
       position: absolute;
-      left: 30%;
-      top: 32%;
-      width: 31%;
+      left: 14.8%;
+      top: 16.5%;
+      width: 47.8%;
       aspect-ratio: 1/1;
+      z-index: 2;
     }
 
     .vinyl {
@@ -85,14 +88,14 @@
 
     .tonearm {
       position: absolute;
-      right: 18%;
-      top: 30%;
-      width: 28%;
+      right: 9.8%;
+      top: 10.6%;
+      width: 34.2%;
       height: auto;
-      transform-origin: 85% 15%;
+      transform-origin: 88% 9.5%;
       transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
       filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
-      z-index: 5;
+      z-index: 3;
     }
 
     .tonearm img {
@@ -103,16 +106,17 @@
 
     .glow {
       position: absolute;
-      left: 30%;
-      top: 32%;
-      width: 31%;
-      height: 31%;
+      left: 14.8%;
+      top: 16.5%;
+      width: 47.8%;
+      height: 47.8%;
       background: radial-gradient(circle, rgba(234, 88, 12, 0.2), transparent 70%);
       border-radius: 50%;
       opacity: 0;
       transition: opacity 0.5s;
       pointer-events: none;
       animation: pulse 2s ease-in-out infinite;
+      z-index: 1;
     }
 
     .glow.active {
@@ -360,9 +364,25 @@
 
   <script>
     // ============ CONFIGURATION ============
-    const ANGLE_REST = -45;  // Tonearm rest position
-    const ANGLE_START = 0;   // Tonearm at record start
-    const ANGLE_END = 30;    // Tonearm at record end
+    const CONFIG = {
+      platter: {
+        leftPct: 14.8,
+        topPct: 16.5,
+        sizePct: 47.8,
+      },
+      tonearm: {
+        rightPct: 9.8,
+        topPct: 10.6,
+        widthPct: 34.2,
+        pivotXPct: 88.0,
+        pivotYPct: 9.5,
+      },
+      angles: {
+        REST: -26,
+        START: 4,
+        END: 22,
+      },
+    };
 
     // Playlist data (easily replaceable with API/database)
     const tracks = [
@@ -438,9 +458,9 @@
     function updateTonearm(progress) {
       let angle;
       if (!isPlaying && progress === 0) {
-        angle = ANGLE_REST;
+        angle = CONFIG.angles.REST;
       } else {
-        angle = ANGLE_START + (ANGLE_END - ANGLE_START) * progress;
+        angle = CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * progress;
       }
       tonearm.style.transform = `rotate(${angle}deg)`;
     }
