@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,8 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useTracks, useDeleteTrack, useUpdateTrack } from '@/hooks/useTracks';
-import { Pencil, Trash2, LogOut, Plus, Upload } from 'lucide-react';
+import { Pencil, Trash2, LogOut, Plus, FolderUp } from 'lucide-react';
+import { extractMp3Metadata } from '@/utils/mp3Metadata';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +47,9 @@ export default function Admin() {
   const [newArtist, setNewArtist] = useState('');
   const [uploadingFile, setUploadingFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -138,6 +142,112 @@ export default function Admin() {
     }
   };
 
+  const handleBulkUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    // Filter only MP3 files
+    const mp3Files = Array.from(files).filter(file => 
+      file.name.toLowerCase().endsWith('.mp3') && file.size <= 50 * 1024 * 1024
+    );
+
+    if (mp3Files.length === 0) {
+      toast({
+        title: 'No valid files',
+        description: 'No MP3 files found or files exceed 50MB limit.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress({ current: 0, total: mp3Files.length });
+
+    // Sort files alphabetically
+    mp3Files.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Get current max order_index
+    const { data: existingTracks } = await supabase
+      .from('tracks')
+      .select('order_index')
+      .order('order_index', { ascending: false })
+      .limit(1);
+
+    let nextOrderIndex = existingTracks && existingTracks.length > 0 
+      ? existingTracks[0].order_index + 1 
+      : 0;
+
+    const failedFiles: string[] = [];
+    let successCount = 0;
+
+    for (let i = 0; i < mp3Files.length; i++) {
+      const file = mp3Files[i];
+      setUploadProgress({ current: i + 1, total: mp3Files.length });
+
+      try {
+        // Extract metadata
+        const metadata = await extractMp3Metadata(file);
+
+        // Upload file to storage
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('tracks')
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('tracks')
+          .getPublicUrl(fileName);
+
+        // Insert into database
+        const { error: insertError } = await supabase
+          .from('tracks')
+          .insert({
+            title: metadata.title,
+            artist: metadata.artist,
+            audio_url: publicUrl,
+            order_index: nextOrderIndex++,
+            user_id: user?.id,
+          });
+
+        if (insertError) throw insertError;
+
+        successCount++;
+      } catch (error) {
+        console.error(`Error uploading ${file.name}:`, error);
+        failedFiles.push(file.name);
+      }
+    }
+
+    setIsUploading(false);
+    setUploadProgress({ current: 0, total: 0 });
+
+    // Reset file input
+    if (folderInputRef.current) {
+      folderInputRef.current.value = '';
+    }
+
+    // Show results
+    if (successCount > 0) {
+      toast({
+        title: 'Upload complete',
+        description: `Successfully uploaded ${successCount} of ${mp3Files.length} tracks${
+          failedFiles.length > 0 ? `. Failed: ${failedFiles.slice(0, 3).join(', ')}${failedFiles.length > 3 ? '...' : ''}` : ''
+        }`,
+      });
+    } else {
+      toast({
+        title: 'Upload failed',
+        description: 'All files failed to upload. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (authLoading || (user && roleLoading)) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -160,10 +270,29 @@ export default function Admin() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>All Tracks</CardTitle>
-            <Button onClick={() => setAddDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Track
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => folderInputRef.current?.click()}
+                disabled={isUploading}
+                variant="secondary"
+              >
+                <FolderUp className="mr-2 h-4 w-4" />
+                {isUploading ? `Uploading ${uploadProgress.current}/${uploadProgress.total}...` : 'Bulk Upload'}
+              </Button>
+              <Button onClick={() => setAddDialogOpen(true)} disabled={isUploading}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Track
+              </Button>
+              <input
+                ref={folderInputRef}
+                type="file"
+                accept=".mp3"
+                multiple
+                {...({ webkitdirectory: '', directory: '' } as any)}
+                onChange={handleBulkUpload}
+                className="hidden"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             {tracksLoading ? (
