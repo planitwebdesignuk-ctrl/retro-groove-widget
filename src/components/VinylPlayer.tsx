@@ -346,27 +346,29 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     const audio = audioRef.current;
     if (!audio) return;
     
-    // Set flag to ensure tonearm uses START position
+    // Set flag to ensure tonearm uses START position and start visual effects immediately
     setIsStartingPlayback(true);
+    setIsPlaying(true); // Start vinyl spinning immediately
     
-    const startPlayback = () => {
-      audio.play()
-        .then(() => {
-          setIsPlaying(true);
-        })
-        .catch((error) => {
-          console.error('Playback failed:', error);
-          setIsStartingPlayback(false);
-        });
+    const startAudioPlayback = () => {
+      // Delay audio playback until tonearm reaches the vinyl
+      setTimeout(() => {
+        audio.play()
+          .catch((error) => {
+            console.error('Playback failed:', error);
+            setIsStartingPlayback(false);
+            setIsPlaying(false);
+          });
+      }, config.tonearmSpeed.playMs); // Wait for tonearm animation to complete
     };
     
-    // Wait for audio to be ready before starting
+    // Wait for audio to be ready before starting the delayed playback
     if (audio.readyState >= 3) { // HAVE_FUTURE_DATA or better
-      startPlayback();
+      startAudioPlayback();
     } else {
       const handleCanPlay = () => {
         audio.removeEventListener('canplay', handleCanPlay);
-        startPlayback();
+        startAudioPlayback();
       };
       audio.addEventListener('canplay', handleCanPlay);
       audio.load(); // Ensure loading starts

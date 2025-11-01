@@ -746,37 +746,47 @@
       // Apply slow transition for initial move to vinyl
       tonearm.style.transition = `transform ${CONFIG.tonearmSpeed.playMs}ms ${CONFIG.tonearmSpeed.playEasing}`;
       
-      const startPlayback = () => {
-        audio.play()
-          .then(() => {
-            isPlaying = true;
-            vinyl.classList.add('spinning');
-            glow.classList.add('active');
-            playBtn.style.display = 'none';
-            stopBtn.style.display = 'block';
-            updateTonearm();
-            
-            // Reset to normal transition speed after animation completes
-            setTimeout(() => {
+      // Start visual effects immediately
+      isPlaying = true;
+      vinyl.classList.add('spinning');
+      glow.classList.add('active');
+      playBtn.style.display = 'none';
+      stopBtn.style.display = 'block';
+      updateTonearm();
+      
+      const startAudioPlayback = () => {
+        // Delay audio playback until tonearm reaches the vinyl
+        setTimeout(() => {
+          audio.play()
+            .then(() => {
+              console.debug('Audio playback started after tonearm animation');
+            })
+            .catch((error) => {
+              console.error('Playback failed:', error);
               isStartingPlayback = false;
-              tonearm.style.transition = `transform ${CONFIG.tonearmSpeed.stopMs}ms ${CONFIG.tonearmSpeed.stopEasing}`;
-              console.debug(`Tonearm transition switched to Stop: ${CONFIG.tonearmSpeed.stopMs}ms ${CONFIG.tonearmSpeed.stopEasing}`);
-            }, CONFIG.tonearmSpeed.playMs);
-          })
-          .catch((error) => {
-            console.error('Playback failed:', error);
-            isStartingPlayback = false;
-            tonearm.style.transition = `transform ${CONFIG.tonearmSpeed.stopMs}ms ${CONFIG.tonearmSpeed.stopEasing}`;
-          });
+              isPlaying = false;
+              vinyl.classList.remove('spinning');
+              glow.classList.remove('active');
+              playBtn.style.display = 'block';
+              stopBtn.style.display = 'none';
+            });
+        }, CONFIG.tonearmSpeed.playMs); // Wait for tonearm animation to complete
+        
+        // Reset to normal transition speed after animation completes
+        setTimeout(() => {
+          isStartingPlayback = false;
+          tonearm.style.transition = `transform ${CONFIG.tonearmSpeed.stopMs}ms ${CONFIG.tonearmSpeed.stopEasing}`;
+          console.debug(`Tonearm transition switched to Stop: ${CONFIG.tonearmSpeed.stopMs}ms ${CONFIG.tonearmSpeed.stopEasing}`);
+        }, CONFIG.tonearmSpeed.playMs);
       };
       
-      // Wait for audio to be ready before starting
+      // Wait for audio to be ready before starting the delayed playback
       if (audio.readyState >= 3) { // HAVE_FUTURE_DATA or better
-        startPlayback();
+        startAudioPlayback();
       } else {
         const handleCanPlay = () => {
           audio.removeEventListener('canplay', handleCanPlay);
-          startPlayback();
+          startAudioPlayback();
         };
         audio.addEventListener('canplay', handleCanPlay);
         audio.load(); // Ensure loading starts
