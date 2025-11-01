@@ -626,13 +626,13 @@
 
     // Playlist data (easily replaceable with API/database)
     const tracks = [
-      { id: 1, title: "You Could Be My Angel", artist: "Live Performance", url: "/audio/You_Could_Be_My_Angel_Live.mp3" },
-      { id: 2, title: "Soul Survivor", artist: "Original Recording", url: "/audio/Soul_Survivor.mp3" },
-      { id: 3, title: "Piece of What it Takes", artist: "Studio Version", url: "/audio/Piece_of_What_it_Takes.mp3" },
-      { id: 4, title: "Mama Said", artist: "Live Performance", url: "/audio/Mama_Said_Live.mp3" },
-      { id: 5, title: "Gotta Roll", artist: "Live Performance", url: "/audio/Gotta_Roll_Live.mp3" },
-      { id: 6, title: "Don't Mind", artist: "Original Recording", url: "/audio/Don_t_Mind.mp3" },
-      { id: 7, title: "Come With Me", artist: "Studio Version", url: "/audio/Come_With_Me.mp3" }
+      { id: 1, title: "You Could Be My Angel", artist: "Live Performance", url: "/audio/You_Could_Be_My_Angel_Live.mp3", duration: 240 },
+      { id: 2, title: "Soul Survivor", artist: "Original Recording", url: "/audio/Soul_Survivor.mp3", duration: 210 },
+      { id: 3, title: "Piece of What it Takes", artist: "Studio Version", url: "/audio/Piece_of_What_it_Takes.mp3", duration: 195 },
+      { id: 4, title: "Mama Said", artist: "Live Performance", url: "/audio/Mama_Said_Live.mp3", duration: 225 },
+      { id: 5, title: "Gotta Roll", artist: "Live Performance", url: "/audio/Gotta_Roll_Live.mp3", duration: 180 },
+      { id: 6, title: "Don't Mind", artist: "Original Recording", url: "/audio/Don_t_Mind.mp3", duration: 205 },
+      { id: 7, title: "Come With Me", artist: "Studio Version", url: "/audio/Come_With_Me.mp3", duration: 215 }
     ];
 
     // ============ DOM ELEMENTS ============
@@ -669,7 +669,7 @@
         vinyl.classList.remove('spinning');
         glow.classList.remove('active');
         playBtn.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
-        updateTonearm(0);
+        updateTonearm();
       } else {
         audio.play();
         isPlaying = true;
@@ -695,12 +695,31 @@
       }
     }
 
-    function updateTonearm(progress) {
+    function getPlaylistProgress() {
+      // Sum durations of all previous tracks
+      let previousDuration = 0;
+      for (let i = 0; i < currentTrackIndex; i++) {
+        previousDuration += tracks[i].duration;
+      }
+      
+      // Add current track progress
+      const currentTrackTime = audio.currentTime || 0;
+      const totalTime = previousDuration + currentTrackTime;
+      
+      // Calculate total playlist duration
+      const totalPlaylistDuration = tracks.reduce((sum, track) => sum + track.duration, 0);
+      
+      return totalTime / totalPlaylistDuration;
+    }
+
+    function updateTonearm() {
+      const playlistProgress = getPlaylistProgress();
       let angle;
-      if (!isPlaying && progress === 0) {
+      
+      if (!isPlaying && playlistProgress === 0) {
         angle = CONFIG.angles.REST;
       } else {
-        angle = CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * progress;
+        angle = CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * playlistProgress;
       }
       tonearm.style.transform = `rotate(${angle}deg)`;
     }
@@ -709,7 +728,7 @@
       if (audio.duration) {
         const progress = audio.currentTime / audio.duration;
         progressFill.style.width = `${progress * 100}%`;
-        updateTonearm(progress);
+        updateTonearm();
       }
     }
 
@@ -763,7 +782,8 @@
         vinyl.classList.remove('spinning');
         glow.classList.remove('active');
         playBtn.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
-        updateTonearm(0);
+        // Return to rest position at end of playlist
+        tonearm.style.transform = `rotate(${CONFIG.angles.REST}deg)`;
       }
     });
 
@@ -885,7 +905,7 @@
         tonearmImg.style.transformOrigin = `${CONFIG.tonearm.pivotXPct}% ${CONFIG.tonearm.pivotYPct}%`;
       }
       
-      updateTonearm(audio.currentTime / audio.duration * 100 || 0);
+      updateTonearm();
 
       if (calibrationMode) {
         const platterRing = document.getElementById('platterRing');

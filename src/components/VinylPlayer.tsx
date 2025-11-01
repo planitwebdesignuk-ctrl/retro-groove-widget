@@ -8,6 +8,7 @@ interface Track {
   title: string;
   artist: string;
   audioUrl: string;
+  duration: number;
 }
 
 interface VinylPlayerProps {
@@ -275,13 +276,36 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     }
   };
 
-  // Calculate tonearm rotation based on progress
+  // Calculate playlist progress (0-100%)
+  const getPlaylistProgress = () => {
+    if (!audioRef.current) return 0;
+    
+    // Sum durations of all previous tracks
+    let previousDuration = 0;
+    for (let i = 0; i < currentTrackIndex; i++) {
+      previousDuration += tracks[i].duration;
+    }
+    
+    // Add current track progress
+    const currentTrackTime = audioRef.current.currentTime || 0;
+    const totalTime = previousDuration + currentTrackTime;
+    
+    // Calculate total playlist duration
+    const totalPlaylistDuration = tracks.reduce((sum, track) => sum + track.duration, 0);
+    
+    return (totalTime / totalPlaylistDuration) * 100;
+  };
+
+  // Calculate tonearm rotation based on playlist progress
   const getTonearmRotation = () => {
-    if (!isPlaying && progress === 0) {
+    const playlistProgress = getPlaylistProgress();
+    
+    if (!isPlaying && playlistProgress === 0) {
       return config.angles.REST;
     }
-    // Interpolate between start and end angles based on progress
-    return config.angles.START + (config.angles.END - config.angles.START) * (progress / 100);
+    
+    // Interpolate between start and end angles based on playlist progress
+    return config.angles.START + (config.angles.END - config.angles.START) * (playlistProgress / 100);
   };
 
   const tonearmRotation = getTonearmRotation();
