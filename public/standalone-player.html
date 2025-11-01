@@ -76,7 +76,7 @@
     }
 
     .vinyl.spinning {
-      animation: spin 8s linear infinite;
+      animation: spin 20s linear infinite;
     }
 
     @keyframes spin {
@@ -659,8 +659,37 @@
       });
     }
 
+    // Check if durations are ready
+    function durationsReady() {
+      return trackDurations.length === tracks.length && trackDurations.every(d => d > 0);
+    }
+
+    // Compute per-track angle fractions
+    function computeTrackFractions() {
+      const n = tracks.length;
+      if (!durationsReady() || n === 0) {
+        // Equal split when durations not ready
+        return Array.from({ length: n }, (_, i) => ({
+          start: i / n,
+          end: (i + 1) / n,
+        }));
+      }
+      // Proportional split based on durations
+      const total = trackDurations.reduce((a, b) => a + b, 0);
+      let acc = 0;
+      return trackDurations.map((d) => {
+        const start = total > 0 ? acc / total : 0;
+        acc += d;
+        const end = total > 0 ? acc / total : 1 / n;
+        return { start, end };
+      });
+    }
+
     // Load durations on page load
-    loadTrackDurations();
+    Promise.all([loadTrackDurations()]).then(() => {
+      console.log('Track durations loaded:', trackDurations);
+      updateTonearm(); // Update tonearm once durations are ready
+    });
 
     // ============ DOM ELEMENTS ============
     const audio = document.getElementById('audio');
@@ -683,10 +712,12 @@
     function loadTrack(index) {
       const track = tracks[index];
       audio.src = track.url;
+      audio.currentTime = 0;
       trackTitle.textContent = track.title;
       trackArtist.textContent = track.artist;
       updatePlaylist();
       updateButtons();
+      updateTonearm();
     }
 
     function togglePlay() {
@@ -722,35 +753,23 @@
       }
     }
 
-    function getPlaylistProgress() {
-      if (trackDurations.length === 0) return 0;
-      
-      // Sum durations of all previous tracks
-      let previousDuration = 0;
-      for (let i = 0; i < currentTrackIndex; i++) {
-        previousDuration += trackDurations[i] || 0;
-      }
-      
-      // Add current track progress
-      const currentTrackTime = audio.currentTime || 0;
-      const totalTime = previousDuration + currentTrackTime;
-      
-      // Calculate total playlist duration
-      const totalPlaylistDuration = trackDurations.reduce((sum, duration) => sum + duration, 0);
-      
-      if (totalPlaylistDuration === 0) return 0;
-      
-      return totalTime / totalPlaylistDuration;
+    // Calculate global fraction based on current track segment
+    function getGlobalFraction() {
+      const fractions = computeTrackFractions();
+      const f = fractions[currentTrackIndex] || { start: 0, end: 1 / tracks.length };
+      const within = (audio.duration ? audio.currentTime / audio.duration : 0);
+      const span = Math.max(0, f.end - f.start);
+      return f.start + within * span;
     }
 
     function updateTonearm() {
-      const playlistProgress = getPlaylistProgress();
+      const globalFraction = getGlobalFraction();
       let angle;
       
-      if (!isPlaying && playlistProgress === 0) {
+      if (!isPlaying && globalFraction === 0) {
         angle = CONFIG.angles.REST;
       } else {
-        angle = CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * playlistProgress;
+        angle = CONFIG.angles.START + (CONFIG.angles.END - CONFIG.angles.START) * globalFraction;
       }
       tonearm.style.transform = `rotate(${angle}deg)`;
     }

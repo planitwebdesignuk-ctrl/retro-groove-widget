@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Play, Pause, SkipBack, SkipForward, Upload, Copy, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -69,6 +69,33 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentTrack = tracks[currentTrackIndex];
+
+  // Check if all durations are loaded
+  const durationsReady = useMemo(
+    () => trackDurations.length === tracks.length && trackDurations.every(d => d > 0),
+    [trackDurations, tracks.length]
+  );
+
+  // Precompute per-track angle fractions
+  const trackFractions = useMemo(() => {
+    const n = tracks.length;
+    if (!durationsReady || n === 0) {
+      // Equal split when durations not ready
+      return Array.from({ length: n }, (_, i) => ({
+        start: i / n,
+        end: (i + 1) / n,
+      }));
+    }
+    // Proportional split based on durations
+    const total = trackDurations.reduce((a, b) => a + b, 0);
+    let acc = 0;
+    return trackDurations.map((d) => {
+      const start = total > 0 ? acc / total : 0;
+      acc += d;
+      const end = total > 0 ? acc / total : 1 / n;
+      return { start, end };
+    });
+  }, [durationsReady, trackDurations, tracks.length]);
 
   // Load actual track durations on mount
   useEffect(() => {
@@ -249,6 +276,10 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
       }
     };
 
+    const handleLoadedMetadata = () => {
+      setProgress(0); // Trigger re-render when duration is known
+    };
+
     if (isPlaying) {
       audio.play();
       animationRef.current = requestAnimationFrame(updateProgress);
@@ -260,12 +291,14 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     }
 
     audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
 
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
       audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
   }, [isPlaying, currentTrackIndex, tracks.length]);
 
@@ -275,6 +308,7 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     if (!audio) return;
 
     audio.load();
+    audio.currentTime = 0;
     setProgress(0);
     
     if (isPlaying) {
@@ -298,38 +332,25 @@ const VinylPlayer = ({ tracks }: VinylPlayerProps) => {
     }
   };
 
-  // Calculate playlist progress (0-100%)
-  const getPlaylistProgress = () => {
-    if (!audioRef.current || trackDurations.length === 0) return 0;
-    
-    // Sum durations of all previous tracks
-    let previousDuration = 0;
-    for (let i = 0; i < currentTrackIndex; i++) {
-      previousDuration += trackDurations[i] || 0;
-    }
-    
-    // Add current track progress
-    const currentTrackTime = audioRef.current.currentTime || 0;
-    const totalTime = previousDuration + currentTrackTime;
-    
-    // Calculate total playlist duration
-    const totalPlaylistDuration = trackDurations.reduce((sum, duration) => sum + duration, 0);
-    
-    if (totalPlaylistDuration === 0) return 0;
-    
-    return (totalTime / totalPlaylistDuration) * 100;
+  // Calculate global fraction based on current track segment
+  const getGlobalFraction = () => {
+    const audio = audioRef.current;
+    if (!audio) return 0;
+    const within = audio.duration ? audio.currentTime / audio.duration : 0;
+    const { start, end } = trackFractions[currentTrackIndex] || { start: 0, end: 1 / Math.max(1, tracks.length) };
+    const span = Math.max(0, end - start);
+    return start + within * span;
   };
 
-  // Calculate tonearm rotation based on playlist progress
+  // Calculate tonearm rotation based on global fraction
   const getTonearmRotation = () => {
-    const playlistProgress = getPlaylistProgress();
+    const globalFraction = getGlobalFraction();
     
-    if (!isPlaying && playlistProgress === 0) {
+    if (!isPlaying && globalFraction === 0) {
       return config.angles.REST;
     }
     
-    // Interpolate between start and end angles based on playlist progress
-    return config.angles.START + (config.angles.END - config.angles.START) * (playlistProgress / 100);
+    return config.angles.START + (config.angles.END - config.angles.START) * globalFraction;
   };
 
   const tonearmRotation = getTonearmRotation();
