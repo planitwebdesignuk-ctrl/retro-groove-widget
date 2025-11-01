@@ -735,8 +735,8 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
                 alt="Record Label"
                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain"
                 style={{
-                  width: '33%',
-                  height: '33%',
+                  width: '52%',
+                  height: '52%',
                   zIndex: 2,
                 }}
               />
