@@ -738,6 +738,8 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
                   width: '52%',
                   height: '52%',
                   zIndex: 2,
+                  maskImage: 'radial-gradient(circle, transparent 0%, transparent 10%, black 12%, black 100%)',
+                  WebkitMaskImage: 'radial-gradient(circle, transparent 0%, transparent 10%, black 12%, black 100%)',
                 }}
               />
             </div>
