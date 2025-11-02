@@ -738,6 +738,9 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
                   width: '52%',
                   height: '52%',
                   zIndex: 2,
+                  // Make label a perfect circle and punch a center hole so the spindle shows
+                  maskImage: 'radial-gradient(circle, transparent 0%, transparent 7.8%, black 8.8%, black 49%, transparent 50%, transparent 100%)',
+                  WebkitMaskImage: 'radial-gradient(circle, transparent 0%, transparent 7.8%, black 8.8%, black 49%, transparent 50%, transparent 100%)',
                 }}
               />
             </div>
