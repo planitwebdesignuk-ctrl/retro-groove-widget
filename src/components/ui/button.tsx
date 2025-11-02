@@ -9,11 +9,11 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-gradient-to-b from-primary via-primary to-[hsl(210,100%,40%)] text-primary-foreground shadow-[0_4px_0_0_hsl(210,100%,35%),0_6px_12px_-2px_hsl(210,100%,20%)] hover:shadow-[0_6px_0_0_hsl(210,100%,35%),0_8px_16px_-2px_hsl(210,100%,20%)] hover:-translate-y-0.5 active:shadow-[0_2px_0_0_hsl(210,100%,35%),0_3px_8px_-2px_hsl(210,100%,20%)] active:translate-y-0.5",
-        destructive: "bg-gradient-to-b from-destructive to-[hsl(0,70%,40%)] text-destructive-foreground shadow-[0_4px_0_0_hsl(0,70%,35%),0_6px_12px_-2px_hsl(0,70%,20%)] hover:shadow-[0_6px_0_0_hsl(0,70%,35%),0_8px_16px_-2px_hsl(0,70%,20%)] hover:-translate-y-0.5 active:shadow-[0_2px_0_0_hsl(0,70%,35%),0_3px_8px_-2px_hsl(0,70%,20%)] active:translate-y-0.5",
-        outline: "border-2 border-primary bg-gradient-to-b from-card to-secondary text-foreground shadow-[0_3px_0_0_hsl(220,25%,20%),0_4px_8px_-2px_hsl(220,40%,8%)] hover:shadow-[0_5px_0_0_hsl(220,25%,20%),0_6px_12px_-2px_hsl(220,40%,8%)] hover:-translate-y-0.5 active:shadow-[0_1px_0_0_hsl(220,25%,20%),0_2px_6px_-2px_hsl(220,40%,8%)] active:translate-y-0.5",
-        secondary: "bg-gradient-to-b from-secondary to-[hsl(220,30%,15%)] text-secondary-foreground shadow-[0_3px_0_0_hsl(220,30%,12%),0_5px_10px_-2px_hsl(220,40%,8%)] hover:shadow-[0_5px_0_0_hsl(220,30%,12%),0_7px_14px_-2px_hsl(220,40%,8%)] hover:-translate-y-0.5 active:shadow-[0_1px_0_0_hsl(220,30%,12%),0_2px_6px_-2px_hsl(220,40%,8%)] active:translate-y-0.5",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
+        default: "bg-gradient-to-br from-[hsl(210,25%,35%)] via-[hsl(210,20%,28%)] to-[hsl(210,25%,22%)] text-foreground shadow-[0_4px_0_0_hsl(210,20%,15%),0_6px_12px_-2px_hsl(210,30%,5%)] hover:shadow-[0_6px_0_0_hsl(210,20%,15%),0_8px_16px_-2px_hsl(210,30%,8%)] hover:-translate-y-0.5 active:shadow-[0_2px_0_0_hsl(210,20%,12%),0_3px_8px_-2px_hsl(210,30%,5%)] active:translate-y-0.5",
+        destructive: "bg-gradient-to-b from-destructive to-[hsl(0,60%,35%)] text-destructive-foreground shadow-[0_4px_0_0_hsl(0,60%,30%),0_6px_12px_-2px_hsl(0,60%,15%)] hover:shadow-[0_6px_0_0_hsl(0,60%,30%),0_8px_16px_-2px_hsl(0,60%,15%)] hover:-translate-y-0.5 active:shadow-[0_2px_0_0_hsl(0,60%,25%),0_3px_8px_-2px_hsl(0,60%,15%)] active:translate-y-0.5",
+        outline: "border-2 border-[hsl(210,20%,25%)] bg-gradient-to-b from-card to-secondary text-foreground shadow-[0_3px_0_0_hsl(210,15%,15%),0_4px_8px_-2px_hsl(210,20%,6%)] hover:shadow-[0_5px_0_0_hsl(210,15%,15%),0_6px_12px_-2px_hsl(210,20%,8%)] hover:-translate-y-0.5 active:shadow-[0_1px_0_0_hsl(210,15%,12%),0_2px_6px_-2px_hsl(210,20%,5%)] active:translate-y-0.5",
+        secondary: "bg-gradient-to-b from-secondary to-[hsl(210,18%,10%)] text-secondary-foreground shadow-[0_3px_0_0_hsl(210,15%,8%),0_5px_10px_-2px_hsl(210,20%,5%)] hover:shadow-[0_5px_0_0_hsl(210,15%,8%),0_7px_14px_-2px_hsl(210,20%,8%)] hover:-translate-y-0.5 active:shadow-[0_1px_0_0_hsl(210,15%,6%),0_2px_6px_-2px_hsl(210,20%,4%)] active:translate-y-0.5",
+        ghost: "hover:bg-accent/20 hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

@@ -14,7 +14,7 @@ const Index = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-blue-radial">
+      <div className="min-h-screen flex items-center justify-center bg-vignette">
         <p className="text-lg">Loading tracks...</p>
       </div>
     );
@@ -34,7 +34,7 @@ const Index = () => {
       {tracks && tracks.length > 0 ? (
         <VinylPlayer tracks={tracks} labelImageUrl="/images/label-cobnet-strange.png" />
       ) : (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-blue-radial">
+        <div className="min-h-screen flex items-center justify-center bg-vignette">
           <p className="text-lg text-muted-foreground">No tracks available. Admin can add tracks.</p>
         </div>
       )}

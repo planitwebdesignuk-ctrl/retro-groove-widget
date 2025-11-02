@@ -667,7 +667,7 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
   }, [isStartingPlayback, isPlaying, config.tonearmSpeed]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-blue-radial p-4 sm:p-8">
+    <div className="flex min-h-screen items-center justify-center bg-vignette p-4 sm:p-8">
       <div className="w-full max-w-4xl animate-fade-in">
         {/* Main Turntable */}
         <div 

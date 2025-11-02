@@ -8,41 +8,41 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 220 40% 8%;
-    --foreground: 210 30% 92%;
+    --background: 210 20% 8%;
+    --foreground: 210 15% 70%;
 
-    --card: 220 35% 12%;
-    --card-foreground: 210 30% 92%;
+    --card: 210 18% 10%;
+    --card-foreground: 210 15% 70%;
 
-    --popover: 220 35% 12%;
-    --popover-foreground: 210 30% 92%;
+    --popover: 210 18% 10%;
+    --popover-foreground: 210 15% 70%;
 
-    --primary: 210 100% 50%;
-    --primary-foreground: 220 40% 8%;
+    --primary: 210 30% 45%;
+    --primary-foreground: 210 15% 90%;
 
-    --secondary: 220 30% 20%;
-    --secondary-foreground: 210 30% 92%;
+    --secondary: 210 20% 15%;
+    --secondary-foreground: 210 15% 70%;
 
-    --muted: 220 20% 18%;
-    --muted-foreground: 210 15% 60%;
+    --muted: 210 12% 25%;
+    --muted-foreground: 210 10% 45%;
 
-    --accent: 200 100% 60%;
-    --accent-foreground: 220 40% 8%;
+    --accent: 210 35% 50%;
+    --accent-foreground: 210 15% 90%;
 
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 210 30% 92%;
+    --destructive: 0 60% 45%;
+    --destructive-foreground: 210 15% 90%;
 
-    --border: 220 25% 25%;
-    --input: 220 20% 18%;
-    --ring: 210 100% 50%;
+    --border: 210 15% 20%;
+    --input: 210 12% 18%;
+    --ring: 210 30% 45%;
 
     --radius: 0.75rem;
     
     /* Vinyl player custom tokens */
-    --vinyl-glow: 210 100% 60%;
-    --wood-grain: 220 30% 25%;
-    --metal-shine: 210 20% 70%;
-    --warm-shadow: 220 50% 5%;
+    --vinyl-glow: 210 30% 40%;
+    --wood-grain: 210 15% 18%;
+    --metal-shine: 210 10% 60%;
+    --warm-shadow: 210 30% 4%;
     
     /* Animations */
     --transition-smooth: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
@@ -66,41 +66,41 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 220 40% 8%;
-    --foreground: 210 30% 92%;
+    --background: 210 20% 8%;
+    --foreground: 210 15% 70%;
 
-    --card: 220 35% 12%;
-    --card-foreground: 210 30% 92%;
+    --card: 210 18% 10%;
+    --card-foreground: 210 15% 70%;
 
-    --popover: 220 35% 12%;
-    --popover-foreground: 210 30% 92%;
+    --popover: 210 18% 10%;
+    --popover-foreground: 210 15% 70%;
 
-    --primary: 210 100% 50%;
-    --primary-foreground: 220 40% 8%;
+    --primary: 210 30% 45%;
+    --primary-foreground: 210 15% 90%;
 
-    --secondary: 220 30% 20%;
-    --secondary-foreground: 210 30% 92%;
+    --secondary: 210 20% 15%;
+    --secondary-foreground: 210 15% 70%;
 
-    --muted: 220 20% 18%;
-    --muted-foreground: 210 15% 60%;
+    --muted: 210 12% 25%;
+    --muted-foreground: 210 10% 45%;
 
-    --accent: 200 100% 60%;
-    --accent-foreground: 220 40% 8%;
+    --accent: 210 35% 50%;
+    --accent-foreground: 210 15% 90%;
 
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 210 30% 92%;
+    --destructive: 0 60% 45%;
+    --destructive-foreground: 210 15% 90%;
 
-    --border: 220 25% 25%;
-    --input: 220 20% 18%;
-    --ring: 210 100% 50%;
-    --sidebar-background: 220 35% 12%;
-    --sidebar-foreground: 210 30% 92%;
-    --sidebar-primary: 210 100% 50%;
-    --sidebar-primary-foreground: 220 40% 8%;
-    --sidebar-accent: 220 30% 20%;
-    --sidebar-accent-foreground: 210 30% 92%;
-    --sidebar-border: 220 25% 25%;
-    --sidebar-ring: 210 100% 50%;
+    --border: 210 15% 20%;
+    --input: 210 12% 18%;
+    --ring: 210 30% 45%;
+    --sidebar-background: 210 18% 10%;
+    --sidebar-foreground: 210 15% 70%;
+    --sidebar-primary: 210 30% 45%;
+    --sidebar-primary-foreground: 210 15% 90%;
+    --sidebar-accent: 210 20% 15%;
+    --sidebar-accent-foreground: 210 15% 70%;
+    --sidebar-border: 210 15% 20%;
+    --sidebar-ring: 210 30% 45%;
   }
 }
 
@@ -115,11 +115,15 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
-  .bg-gradient-blue {
-    background: linear-gradient(135deg, hsl(220, 40%, 8%) 0%, hsl(230, 45%, 15%) 100%);
+  .bg-gradient-navy {
+    background: linear-gradient(135deg, hsl(210, 20%, 8%) 0%, hsl(215, 25%, 12%) 100%);
   }
   
-  .bg-gradient-blue-radial {
-    background: radial-gradient(ellipse at top, hsl(230, 45%, 15%) 0%, hsl(220, 40%, 8%) 100%);
+  .bg-gradient-navy-radial {
+    background: radial-gradient(ellipse at top, hsl(215, 25%, 12%) 0%, hsl(210, 18%, 8%) 100%);
+  }
+  
+  .bg-vignette {
+    background: radial-gradient(ellipse at center, hsl(210, 20%, 10%) 0%, hsl(210, 25%, 6%) 100%);
   }
 }
