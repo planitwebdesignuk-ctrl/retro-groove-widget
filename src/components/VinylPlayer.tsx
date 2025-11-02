@@ -69,6 +69,7 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
   const [isDragging, setIsDragging] = useState(false);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [isLastTrackFinished, setIsLastTrackFinished] = useState(false);
+  const [labelScale, setLabelScale] = useState(1);
   const [config, setConfig] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -321,6 +322,65 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
       setAspectRatio(ratio);
     }
   }, []);
+
+  // Auto-scale label based on image transparency to handle any uploaded label
+  useEffect(() => {
+    let cancelled = false;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = labelImageUrl;
+    
+    img.onload = () => {
+      const size = 256;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      ctx.clearRect(0, 0, size, size);
+      ctx.drawImage(img, 0, 0, size, size);
+      
+      try {
+        const imageData = ctx.getImageData(0, 0, size, size);
+        const data = imageData.data;
+        let minX = size, minY = size, maxX = 0, maxY = 0;
+        const threshold = 8; // Alpha threshold to include anti-aliased edges
+        
+        // Find bounding box of non-transparent pixels
+        for (let y = 0; y < size; y++) {
+          for (let x = 0; x < size; x++) {
+            const alpha = data[(y * size + x) * 4 + 3];
+            if (alpha > threshold) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+        
+        const contentW = Math.max(1, maxX - minX + 1);
+        const contentH = Math.max(1, maxY - minY + 1);
+        const contentSize = Math.max(contentW, contentH);
+        const ratio = contentSize / size;
+        const scale = ratio > 0 ? Math.min(2.0, (1 / ratio) * 0.98) : 1; // 0.98 for small safety margin
+        
+        if (!cancelled) setLabelScale(scale);
+      } catch (error) {
+        console.error('Failed to analyze label image:', error);
+        if (!cancelled) setLabelScale(1);
+      }
+    };
+    
+    img.onerror = () => {
+      if (!cancelled) setLabelScale(1);
+    };
+    
+    return () => {
+      cancelled = true;
+    };
+  }, [labelImageUrl]);
 
   const handleReferenceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -729,20 +789,27 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
                 alt="Vinyl Record"
                 className="w-full h-full object-contain"
               />
-              {/* Center label overlay */}
-              <img
-                src={labelImageUrl}
-                alt="Record Label"
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain"
+              {/* Center label overlay with wrapper for mask and auto-scaling */}
+              <div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden"
                 style={{
                   width: '52%',
                   height: '52%',
                   zIndex: 2,
-                  // Make label a perfect circle and punch a center hole so the spindle shows
                   maskImage: 'radial-gradient(circle, transparent 0%, transparent 7.8%, black 8.8%, black 49%, transparent 50%, transparent 100%)',
                   WebkitMaskImage: 'radial-gradient(circle, transparent 0%, transparent 7.8%, black 8.8%, black 49%, transparent 50%, transparent 100%)',
                 }}
-              />
+              >
+                <img
+                  src={labelImageUrl}
+                  alt="Record Label"
+                  className="w-full h-full object-contain"
+                  style={{
+                    transform: `scale(${labelScale})`,
+                    transformOrigin: 'center',
+                  }}
+                />
+              </div>
             </div>
           </div>
 
