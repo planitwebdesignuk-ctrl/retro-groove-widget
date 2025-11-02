@@ -8,41 +8,41 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 28 25% 12%;
-    --foreground: 35 20% 92%;
+    --background: 220 40% 8%;
+    --foreground: 210 30% 92%;
 
-    --card: 28 20% 15%;
-    --card-foreground: 35 20% 92%;
+    --card: 220 35% 12%;
+    --card-foreground: 210 30% 92%;
 
-    --popover: 28 20% 15%;
-    --popover-foreground: 35 20% 92%;
+    --popover: 220 35% 12%;
+    --popover-foreground: 210 30% 92%;
 
-    --primary: 30 65% 55%;
-    --primary-foreground: 28 25% 10%;
+    --primary: 210 100% 50%;
+    --primary-foreground: 220 40% 8%;
 
-    --secondary: 25 30% 25%;
-    --secondary-foreground: 35 20% 92%;
+    --secondary: 220 30% 20%;
+    --secondary-foreground: 210 30% 92%;
 
-    --muted: 25 20% 20%;
-    --muted-foreground: 30 15% 60%;
+    --muted: 220 20% 18%;
+    --muted-foreground: 210 15% 60%;
 
-    --accent: 35 80% 50%;
-    --accent-foreground: 28 25% 10%;
+    --accent: 200 100% 60%;
+    --accent-foreground: 220 40% 8%;
 
     --destructive: 0 70% 50%;
-    --destructive-foreground: 35 20% 92%;
+    --destructive-foreground: 210 30% 92%;
 
-    --border: 25 20% 25%;
-    --input: 25 20% 20%;
-    --ring: 30 65% 55%;
+    --border: 220 25% 25%;
+    --input: 220 20% 18%;
+    --ring: 210 100% 50%;
 
     --radius: 0.75rem;
     
     /* Vinyl player custom tokens */
-    --vinyl-glow: 0 90% 50%;
-    --wood-grain: 30 35% 40%;
-    --metal-shine: 200 10% 75%;
-    --warm-shadow: 28 40% 8%;
+    --vinyl-glow: 210 100% 60%;
+    --wood-grain: 220 30% 25%;
+    --metal-shine: 210 20% 70%;
+    --warm-shadow: 220 50% 5%;
     
     /* Animations */
     --transition-smooth: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
@@ -66,41 +66,41 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 28 25% 12%;
-    --foreground: 35 20% 92%;
+    --background: 220 40% 8%;
+    --foreground: 210 30% 92%;
 
-    --card: 28 20% 15%;
-    --card-foreground: 35 20% 92%;
+    --card: 220 35% 12%;
+    --card-foreground: 210 30% 92%;
 
-    --popover: 28 20% 15%;
-    --popover-foreground: 35 20% 92%;
+    --popover: 220 35% 12%;
+    --popover-foreground: 210 30% 92%;
 
-    --primary: 30 65% 55%;
-    --primary-foreground: 28 25% 10%;
+    --primary: 210 100% 50%;
+    --primary-foreground: 220 40% 8%;
 
-    --secondary: 25 30% 25%;
-    --secondary-foreground: 35 20% 92%;
+    --secondary: 220 30% 20%;
+    --secondary-foreground: 210 30% 92%;
 
-    --muted: 25 20% 20%;
-    --muted-foreground: 30 15% 60%;
+    --muted: 220 20% 18%;
+    --muted-foreground: 210 15% 60%;
 
-    --accent: 35 80% 50%;
-    --accent-foreground: 28 25% 10%;
+    --accent: 200 100% 60%;
+    --accent-foreground: 220 40% 8%;
 
     --destructive: 0 70% 50%;
-    --destructive-foreground: 35 20% 92%;
+    --destructive-foreground: 210 30% 92%;
 
-    --border: 25 20% 25%;
-    --input: 25 20% 20%;
-    --ring: 30 65% 55%;
-    --sidebar-background: 28 20% 15%;
-    --sidebar-foreground: 35 20% 92%;
-    --sidebar-primary: 30 65% 55%;
-    --sidebar-primary-foreground: 28 25% 10%;
-    --sidebar-accent: 25 30% 25%;
-    --sidebar-accent-foreground: 35 20% 92%;
-    --sidebar-border: 25 20% 25%;
-    --sidebar-ring: 30 65% 55%;
+    --border: 220 25% 25%;
+    --input: 220 20% 18%;
+    --ring: 210 100% 50%;
+    --sidebar-background: 220 35% 12%;
+    --sidebar-foreground: 210 30% 92%;
+    --sidebar-primary: 210 100% 50%;
+    --sidebar-primary-foreground: 220 40% 8%;
+    --sidebar-accent: 220 30% 20%;
+    --sidebar-accent-foreground: 210 30% 92%;
+    --sidebar-border: 220 25% 25%;
+    --sidebar-ring: 210 100% 50%;
   }
 }
 
@@ -111,5 +111,15 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .bg-gradient-blue {
+    background: linear-gradient(135deg, hsl(220, 40%, 8%) 0%, hsl(230, 45%, 15%) 100%);
+  }
+  
+  .bg-gradient-blue-radial {
+    background: radial-gradient(ellipse at top, hsl(230, 45%, 15%) 0%, hsl(220, 40%, 8%) 100%);
   }
 }
