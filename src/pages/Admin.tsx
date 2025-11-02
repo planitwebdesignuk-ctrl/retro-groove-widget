@@ -100,6 +100,46 @@ export default function Admin() {
     e.preventDefault();
     if (!uploadingFile || !newTitle || !newArtist) return;
 
+    // Validate file extension
+    if (!uploadingFile.name.toLowerCase().endsWith('.mp3')) {
+      toast({
+        title: 'Invalid file',
+        description: 'Please upload an MP3 file',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate MIME type (server-side protection)
+    if (uploadingFile.type !== 'audio/mpeg' && uploadingFile.type !== 'audio/mp3') {
+      toast({
+        title: 'Invalid file type',
+        description: 'Only MP3 audio files are allowed',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (50MB limit)
+    if (uploadingFile.size > 50 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'File size must be less than 50MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file is not empty
+    if (uploadingFile.size === 0) {
+      toast({
+        title: 'Invalid file',
+        description: 'File is empty',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setUploading(true);
     try {
       // Upload file to storage
@@ -152,18 +192,31 @@ export default function Admin() {
     
     console.log('Bulk upload triggered, files:', files.length);
 
-    // Filter only MP3 files
-    const mp3Files = Array.from(files).filter(file => 
-      file.name.toLowerCase().endsWith('.mp3') && file.size <= 50 * 1024 * 1024
-    );
+    // Filter and validate files with comprehensive checks
+    const mp3Files = Array.from(files).filter((file) => {
+      const isValidExtension = file.name.toLowerCase().endsWith('.mp3');
+      const isValidMimeType = file.type === 'audio/mpeg' || file.type === 'audio/mp3';
+      const isValidSize = file.size > 0 && file.size <= 50 * 1024 * 1024;
+      return isValidExtension && isValidMimeType && isValidSize;
+    });
 
     if (mp3Files.length === 0) {
       toast({
         title: 'No valid files',
-        description: 'No MP3 files found or files exceed 50MB limit.',
+        description: 'No valid MP3 files found. Files must be audio/mpeg format and under 50MB.',
         variant: 'destructive',
       });
       return;
+    }
+
+    // Warn if some files were filtered out
+    const rejectedCount = files.length - mp3Files.length;
+    if (rejectedCount > 0) {
+      toast({
+        title: 'Some files rejected',
+        description: `${rejectedCount} file(s) rejected due to invalid format, type, or size`,
+        variant: 'default',
+      });
     }
 
     setIsUploading(true);
