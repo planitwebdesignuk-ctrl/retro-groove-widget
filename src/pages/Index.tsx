@@ -32,7 +32,7 @@ const Index = () => {
       )}
       
       {tracks && tracks.length > 0 ? (
-        <VinylPlayer tracks={tracks} labelImageUrl="/images/label-blank-template.png" />
+        <VinylPlayer tracks={tracks} labelImageUrl="/images/label-cobweb-strange.png" />
       ) : (
         <div className="min-h-screen flex items-center justify-center bg-vignette">
           <p className="text-lg text-muted-foreground">No tracks available. Admin can add tracks.</p>
