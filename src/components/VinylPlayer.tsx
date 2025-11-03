@@ -500,7 +500,10 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
     
     // Wait for tonearm animation, then play needle drop and start track
     const playTimer = setTimeout(() => {
-      playNeedleDropSound();
+      // Only play needle drop sound for the first track (simulating initial needle placement)
+      if (currentTrackIndex === 0) {
+        playNeedleDropSound();
+      }
       audio.play().catch((error) => {
         console.error('Playback failed during track change:', error);
         setIsPlaying(false);
