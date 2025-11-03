@@ -11,7 +11,8 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useTracks, useDeleteTrack, useUpdateTrack } from '@/hooks/useTracks';
-import { Pencil, Trash2, LogOut, Plus, FolderUp, Upload } from 'lucide-react';
+import { useLabelImages, useUploadLabelImage, useSetActiveLabelImage, useDeleteLabelImage } from '@/hooks/useLabelImages';
+import { Pencil, Trash2, LogOut, Plus, FolderUp, Upload, Image as ImageIcon, Check } from 'lucide-react';
 import { extractMp3Metadata } from '@/utils/mp3Metadata';
 import {
   AlertDialog,
@@ -38,6 +39,11 @@ export default function Admin() {
   const { data: tracks, isLoading: tracksLoading } = useTracks();
   const deleteTrack = useDeleteTrack();
   const updateTrack = useUpdateTrack();
+  
+  const { data: labelImages, isLoading: labelsLoading } = useLabelImages();
+  const uploadLabelImage = useUploadLabelImage();
+  const setActiveLabelImage = useSetActiveLabelImage();
+  const deleteLabelImage = useDeleteLabelImage();
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -53,6 +59,12 @@ export default function Admin() {
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const folderInputRef = useRef<HTMLInputElement>(null);
   const multipleFilesInputRef = useRef<HTMLInputElement>(null);
+  
+  const [labelUploadDialogOpen, setLabelUploadDialogOpen] = useState(false);
+  const [labelDeleteDialogOpen, setLabelDeleteDialogOpen] = useState(false);
+  const [selectedLabel, setSelectedLabel] = useState<any>(null);
+  const [uploadingLabel, setUploadingLabel] = useState<File | null>(null);
+  const [uploadingLabelImage, setUploadingLabelImage] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -313,6 +325,68 @@ export default function Admin() {
     }
   };
 
+  const handleUploadLabel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadingLabel) return;
+
+    const validExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
+    const fileExt = uploadingLabel.name.toLowerCase().slice(uploadingLabel.name.lastIndexOf('.'));
+    
+    if (!validExtensions.includes(fileExt)) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Only PNG, JPG, JPEG, and WebP images are allowed',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const validMimeTypes = ['image/png', 'image/jpeg', 'image/webp'];
+    if (!validMimeTypes.includes(uploadingLabel.type)) {
+      toast({
+        title: 'Invalid MIME type',
+        description: 'Only image files are allowed',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (uploadingLabel.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Label image must be less than 5MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUploadingLabelImage(true);
+    try {
+      await uploadLabelImage.mutateAsync(uploadingLabel);
+      setLabelUploadDialogOpen(false);
+      setUploadingLabel(null);
+    } catch (error) {
+      // Error handled by mutation
+    } finally {
+      setUploadingLabelImage(false);
+    }
+  };
+
+  const handleSetActiveLabel = async (labelId: string) => {
+    await setActiveLabelImage.mutateAsync(labelId);
+  };
+
+  const handleDeleteLabel = async () => {
+    if (selectedLabel) {
+      await deleteLabelImage.mutateAsync({
+        labelId: selectedLabel.id,
+        imageUrl: selectedLabel.image_url,
+      });
+      setLabelDeleteDialogOpen(false);
+      setSelectedLabel(null);
+    }
+  };
+
   if (authLoading || (user && roleLoading)) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -425,6 +499,75 @@ export default function Admin() {
             )}
           </CardContent>
         </Card>
+
+        <Card className="mt-8">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Label Images</CardTitle>
+            <Button onClick={() => setLabelUploadDialogOpen(true)}>
+              <ImageIcon className="mr-2 h-4 w-4" />
+              Upload Label
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {labelsLoading ? (
+              <p>Loading labels...</p>
+            ) : labelImages?.length === 0 ? (
+              <p className="text-muted-foreground">No label images yet. Upload your first label!</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {labelImages?.map((label) => (
+                  <div 
+                    key={label.id} 
+                    className={`relative border rounded-lg p-4 ${label.is_active ? 'border-primary ring-2 ring-primary' : 'border-border'}`}
+                  >
+                    {label.is_active && (
+                      <div className="absolute top-2 right-2 bg-primary text-primary-foreground px-2 py-1 rounded-md text-xs font-semibold flex items-center gap-1">
+                        <Check className="h-3 w-3" />
+                        Active
+                      </div>
+                    )}
+                    <div className="aspect-square mb-3 rounded overflow-hidden bg-muted">
+                      <img 
+                        src={label.image_url} 
+                        alt={label.name}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="font-medium truncate" title={label.name}>{label.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {label.file_size ? `${(label.file_size / 1024).toFixed(1)} KB` : 'Unknown size'}
+                      </p>
+                      <div className="flex gap-2">
+                        {!label.is_active && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSetActiveLabel(label.id)}
+                            className="flex-1"
+                          >
+                            Set Active
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setSelectedLabel(label);
+                            setLabelDeleteDialogOpen(true);
+                          }}
+                          className={label.is_active ? 'flex-1' : ''}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -521,6 +664,72 @@ export default function Admin() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={labelUploadDialogOpen} onOpenChange={setLabelUploadDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Label Image</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUploadLabel} className="space-y-4">
+            <div>
+              <Label htmlFor="label-upload">Image File</Label>
+              <Input
+                id="label-upload"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(e) => setUploadingLabel(e.target.files?.[0] || null)}
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                PNG, JPG, JPEG, or WebP • Max 5MB • Square images recommended
+              </p>
+            </div>
+            {uploadingLabel && (
+              <div className="border rounded-lg p-2">
+                <p className="text-sm font-medium">Preview:</p>
+                <div className="aspect-square mt-2 rounded overflow-hidden bg-muted max-w-[200px]">
+                  <img 
+                    src={URL.createObjectURL(uploadingLabel)} 
+                    alt="Preview"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setLabelUploadDialogOpen(false);
+                  setUploadingLabel(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={uploadingLabelImage}>
+                {uploadingLabelImage ? 'Uploading...' : 'Upload Label'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={labelDeleteDialogOpen} onOpenChange={setLabelDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Label Image?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{selectedLabel?.name}". This action cannot be undone.
+              {selectedLabel?.is_active && ' The player will fall back to the default label.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteLabel}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
