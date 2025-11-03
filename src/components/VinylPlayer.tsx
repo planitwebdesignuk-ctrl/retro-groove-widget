@@ -958,10 +958,7 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
                 onMouseLeave={handleProgressBarMouseLeave}
               >
                 <div
-                  className={cn(
-                    "h-full bg-primary rounded-full",
-                    !isDragging && "transition-all duration-100"
-                  )}
+                  className="h-full bg-primary rounded-full"
                   style={{ width: `${progress}%` }}
                 />
                 
