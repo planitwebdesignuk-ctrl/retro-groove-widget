@@ -61,7 +61,7 @@ const STORAGE_KEY = 'vinyl-player-config-v8';
 
 // No need for synthetic sound generators - using real audio files
 
-const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png' }: VinylPlayerProps) => {
+const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-blank-template-2.png' }: VinylPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isStartingPlayback, setIsStartingPlayback] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
