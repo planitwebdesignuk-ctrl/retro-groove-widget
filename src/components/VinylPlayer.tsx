@@ -53,7 +53,7 @@ const DEFAULT_CONFIG = {
     skipSeconds: 10,
   },
   label: {
-    scale: 1.0,
+    scale: 1.65,
   },
 };
 
@@ -86,6 +86,9 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [referenceOpacity, setReferenceOpacity] = useState(50);
   const [adjustTarget, setAdjustTarget] = useState<'platter' | 'tonearm' | 'pivot' | 'angles' | 'tonearm-speed-play' | 'tonearm-speed-stop' | 'vinyl' | 'label'>('platter');
+  const [panelPosition, setPanelPosition] = useState({ x: 16, y: 16 });
+  const [isDraggingPanel, setIsDraggingPanel] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationRef = useRef<number>();
   const baseImageRef = useRef<HTMLImageElement>(null);
@@ -329,79 +332,37 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
     }
   }, []);
 
-  // Auto-scale label based on image transparency to handle any uploaded label
+  // Handle panel dragging
   useEffect(() => {
-    let cancelled = false;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.src = labelImageUrl;
+    if (!isDraggingPanel) return;
     
-    img.onload = () => {
-      const size = 256;
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      
-      ctx.clearRect(0, 0, size, size);
-      ctx.drawImage(img, 0, 0, size, size);
-      
-      try {
-        const imageData = ctx.getImageData(0, 0, size, size);
-        const data = imageData.data;
-        let minX = size, minY = size, maxX = 0, maxY = 0;
-        const threshold = 8; // Alpha threshold to include anti-aliased edges
-        
-        // Find bounding box of non-transparent pixels
-        for (let y = 0; y < size; y++) {
-          for (let x = 0; x < size; x++) {
-            const alpha = data[(y * size + x) * 4 + 3];
-            if (alpha > threshold) {
-              if (x < minX) minX = x;
-              if (x > maxX) maxX = x;
-              if (y < minY) minY = y;
-              if (y > maxY) maxY = y;
-            }
-          }
-        }
-        
-        const contentW = Math.max(1, maxX - minX + 1);
-        const contentH = Math.max(1, maxY - minY + 1);
-        const contentSize = Math.max(contentW, contentH);
-        const ratio = contentSize / size;
-        const scale = ratio > 0 ? Math.min(2.0, (1 / ratio) * 0.98) : 1; // 0.98 for small safety margin
-        
-        if (!cancelled) {
-          setConfig(prev => ({
-            ...prev,
-            label: { ...prev.label, scale }
-          }));
-        }
-      } catch (error) {
-        console.error('Failed to analyze label image:', error);
-        if (!cancelled) {
-          setConfig(prev => ({
-            ...prev,
-            label: { ...prev.label, scale: 1 }
-          }));
-        }
-      }
+    const handleMouseMove = (e: MouseEvent) => {
+      setPanelPosition({
+        x: e.clientX - dragOffset.x,
+        y: e.clientY - dragOffset.y
+      });
     };
     
-    img.onerror = () => {
-      if (!cancelled) {
-        setConfig(prev => ({
-          ...prev,
-          label: { ...prev.label, scale: 1 }
-        }));
-      }
+    const handleMouseUp = () => {
+      setIsDraggingPanel(false);
     };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
     
     return () => {
-      cancelled = true;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [labelImageUrl]);
+  }, [isDraggingPanel, dragOffset]);
+
+  const handlePanelMouseDown = (e: React.MouseEvent) => {
+    setIsDraggingPanel(true);
+    setDragOffset({
+      x: e.clientX - panelPosition.x,
+      y: e.clientY - panelPosition.y
+    });
+  };
 
   const handleReferenceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -913,8 +874,22 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
               </div>
 
               {/* Control Panel */}
-              <div className="absolute top-4 left-4 bg-black/90 text-white p-4 rounded-lg text-xs font-mono pointer-events-auto max-w-md">
-                <div className="font-bold mb-3 text-sm">🎯 Calibration Mode</div>
+              <div 
+                className="bg-black/90 text-white p-4 rounded-lg text-xs font-mono pointer-events-auto max-w-md"
+                style={{
+                  position: 'fixed',
+                  left: `${panelPosition.x}px`,
+                  top: `${panelPosition.y}px`,
+                  cursor: isDraggingPanel ? 'grabbing' : 'grab'
+                }}
+              >
+                <div 
+                  className="font-bold mb-3 text-sm flex items-center gap-2 select-none"
+                  onMouseDown={handlePanelMouseDown}
+                >
+                  <span className="text-gray-400">⋮⋮</span>
+                  🎯 Calibration Mode
+                </div>
                 
                 <div className="mb-3 space-y-1">
                   <div className={adjustTarget === 'platter' ? 'text-yellow-400 font-bold' : ''}>
