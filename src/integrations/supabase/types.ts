@@ -14,36 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      label_images: {
-        Row: {
-          created_at: string | null
-          file_size: number | null
-          id: string
-          image_url: string
-          is_active: boolean | null
-          name: string
-          uploaded_by: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          file_size?: number | null
-          id?: string
-          image_url: string
-          is_active?: boolean | null
-          name: string
-          uploaded_by?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          file_size?: number | null
-          id?: string
-          image_url?: string
-          is_active?: boolean | null
-          name?: string
-          uploaded_by?: string | null
-        }
-        Relationships: []
-      }
       tracks: {
         Row: {
           artist: string

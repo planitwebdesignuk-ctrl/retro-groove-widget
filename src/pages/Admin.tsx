@@ -11,8 +11,7 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useTracks, useDeleteTrack, useUpdateTrack } from '@/hooks/useTracks';
-import { useLabelImages, useSetActiveLabelImage, useDeleteLabelImage } from '@/hooks/useLabelImages';
-import { Pencil, Trash2, LogOut, Plus, FolderUp, Upload, Image } from 'lucide-react';
+import { Pencil, Trash2, LogOut, Plus, FolderUp, Upload } from 'lucide-react';
 import { extractMp3Metadata } from '@/utils/mp3Metadata';
 import {
   AlertDialog,
@@ -39,9 +38,6 @@ export default function Admin() {
   const { data: tracks, isLoading: tracksLoading } = useTracks();
   const deleteTrack = useDeleteTrack();
   const updateTrack = useUpdateTrack();
-  const { data: labelImages, isLoading: labelImagesLoading } = useLabelImages();
-  const setActiveLabelImage = useSetActiveLabelImage();
-  const deleteLabelImage = useDeleteLabelImage();
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -57,8 +53,6 @@ export default function Admin() {
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const folderInputRef = useRef<HTMLInputElement>(null);
   const multipleFilesInputRef = useRef<HTMLInputElement>(null);
-  const labelImageInputRef = useRef<HTMLInputElement>(null);
-  const [uploadingLabel, setUploadingLabel] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -319,104 +313,6 @@ export default function Admin() {
     }
   };
 
-  const handleLabelImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Please upload an image file (PNG, JPG, etc.)',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Validate file size (5MB limit)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Image must be less than 5MB',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Validate image dimensions (square)
-    const img = document.createElement('img');
-    const objectUrl = URL.createObjectURL(file);
-    
-    img.onload = async () => {
-      URL.revokeObjectURL(objectUrl);
-
-      if (img.width !== img.height) {
-        toast({
-          title: 'Invalid dimensions',
-          description: 'Label image must be square (same width and height)',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      setUploadingLabel(true);
-      try {
-        // Upload to storage
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from('label-images')
-          .upload(fileName, file);
-
-        if (uploadError) throw uploadError;
-
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('label-images')
-          .getPublicUrl(fileName);
-
-        // Insert into database
-        const { error: insertError } = await supabase
-          .from('label_images')
-          .insert({
-            name: file.name,
-            image_url: publicUrl,
-            uploaded_by: user?.id,
-            file_size: file.size,
-            is_active: (labelImages?.length || 0) === 0, // Set as active if it's the first one
-          });
-
-        if (insertError) throw insertError;
-
-        await queryClient.invalidateQueries({ queryKey: ['label-images'] });
-        toast({ title: 'Label image uploaded successfully!' });
-        
-        if (labelImageInputRef.current) {
-          labelImageInputRef.current.value = '';
-        }
-      } catch (error: any) {
-        toast({
-          title: 'Error uploading label image',
-          description: error.message,
-          variant: 'destructive',
-        });
-      } finally {
-        setUploadingLabel(false);
-      }
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      toast({
-        title: 'Invalid image',
-        description: 'Unable to load image file',
-        variant: 'destructive',
-      });
-    };
-
-    img.src = objectUrl;
-  };
-
   if (authLoading || (user && roleLoading)) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -518,85 +414,6 @@ export default function Admin() {
                             setSelectedTrack(track);
                             setDeleteDialogOpen(true);
                           }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="mt-8">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Label Images</CardTitle>
-            <div>
-              <Button 
-                onClick={() => labelImageInputRef.current?.click()}
-                disabled={uploadingLabel}
-              >
-                <Image className="mr-2 h-4 w-4" />
-                {uploadingLabel ? 'Uploading...' : 'Upload Label Image'}
-              </Button>
-              <input
-                ref={labelImageInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleLabelImageUpload}
-                className="hidden"
-              />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {labelImagesLoading ? (
-              <p>Loading label images...</p>
-            ) : labelImages?.length === 0 ? (
-              <p className="text-muted-foreground">No label images yet. Upload your first label template!</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Preview</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Active</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {labelImages?.map((labelImage) => (
-                    <TableRow key={labelImage.id} className={labelImage.is_active ? 'bg-primary/5' : ''}>
-                      <TableCell>
-                        <img 
-                          src={labelImage.image_url} 
-                          alt={labelImage.name}
-                          className="w-12 h-12 object-cover rounded"
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">{labelImage.name}</TableCell>
-                      <TableCell>{(labelImage.file_size / 1024).toFixed(1)} KB</TableCell>
-                      <TableCell>{new Date(labelImage.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant={labelImage.is_active ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setActiveLabelImage.mutate(labelImage.id)}
-                          disabled={labelImage.is_active}
-                        >
-                          {labelImage.is_active ? 'Active' : 'Set Active'}
-                        </Button>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteLabelImage.mutate(labelImage.id)}
-                          disabled={labelImage.is_active}
-                          title={labelImage.is_active ? 'Cannot delete active label' : 'Delete label'}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

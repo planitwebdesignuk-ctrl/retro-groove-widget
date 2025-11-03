@@ -5,14 +5,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
-import { useActiveLabelImage } from "@/hooks/useLabelImages";
 
 const Index = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: tracks, isLoading } = useTracks();
   const { data: role } = useUserRole(user?.id);
-  const { data: activeLabel } = useActiveLabelImage();
 
   if (isLoading) {
     return (
@@ -34,7 +32,7 @@ const Index = () => {
       )}
       
       {tracks && tracks.length > 0 ? (
-        <VinylPlayer tracks={tracks} labelImageUrl={activeLabel?.image_url || "/images/label-blank-template-2.png"} />
+        <VinylPlayer tracks={tracks} labelImageUrl="/images/label-blank-template.png" />
       ) : (
         <div className="min-h-screen flex items-center justify-center bg-vignette">
           <p className="text-lg text-muted-foreground">No tracks available. Admin can add tracks.</p>

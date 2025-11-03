@@ -52,16 +52,13 @@ const DEFAULT_CONFIG = {
     scratchSoundsEnabled: true,
     skipSeconds: 10,
   },
-  label: {
-    scale: 1.65,
-  },
 };
 
 const STORAGE_KEY = 'vinyl-player-config-v8';
 
 // No need for synthetic sound generators - using real audio files
 
-const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-blank-template-2.png' }: VinylPlayerProps) => {
+const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png' }: VinylPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isStartingPlayback, setIsStartingPlayback] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
@@ -85,10 +82,7 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-blank-template-2.p
   });
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [referenceOpacity, setReferenceOpacity] = useState(50);
-  const [adjustTarget, setAdjustTarget] = useState<'platter' | 'tonearm' | 'pivot' | 'angles' | 'tonearm-speed-play' | 'tonearm-speed-stop' | 'vinyl' | 'label'>('platter');
-  const [panelPosition, setPanelPosition] = useState({ x: 16, y: 16 });
-  const [isDraggingPanel, setIsDraggingPanel] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [adjustTarget, setAdjustTarget] = useState<'platter' | 'tonearm' | 'pivot' | 'angles' | 'tonearm-speed-play' | 'tonearm-speed-stop' | 'vinyl'>('platter');
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationRef = useRef<number>();
   const baseImageRef = useRef<HTMLImageElement>(null);
@@ -246,7 +240,7 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-blank-template-2.p
           break;
         case 'Tab':
           e.preventDefault();
-          const targets: typeof adjustTarget[] = ['platter', 'tonearm', 'pivot', 'angles', 'tonearm-speed-play', 'tonearm-speed-stop', 'vinyl', 'label'];
+          const targets: typeof adjustTarget[] = ['platter', 'tonearm', 'pivot', 'angles', 'tonearm-speed-play', 'tonearm-speed-stop', 'vinyl'];
           const currentIndex = targets.indexOf(adjustTarget);
           setAdjustTarget(targets[(currentIndex + 1) % targets.length]);
           break;
@@ -260,7 +254,6 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-blank-template-2.p
           if (adjustTarget === 'tonearm-speed-play') updated.tonearmSpeed.playMs = Math.max(100, updated.tonearmSpeed.playMs - stepLeft);
           if (adjustTarget === 'tonearm-speed-stop') updated.tonearmSpeed.stopMs = Math.max(100, updated.tonearmSpeed.stopMs - stepLeft);
           if (adjustTarget === 'vinyl') updated.vinylSpeed = Math.max(1, updated.vinylSpeed - step);
-          if (adjustTarget === 'label') updated.label.scale = Math.max(0.1, updated.label.scale - step * 0.02);
           break;
         case 'ArrowRight':
           e.preventDefault();
@@ -272,7 +265,6 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-blank-template-2.p
           if (adjustTarget === 'tonearm-speed-play') updated.tonearmSpeed.playMs = Math.min(5000, updated.tonearmSpeed.playMs + stepRight);
           if (adjustTarget === 'tonearm-speed-stop') updated.tonearmSpeed.stopMs = Math.min(5000, updated.tonearmSpeed.stopMs + stepRight);
           if (adjustTarget === 'vinyl') updated.vinylSpeed = Math.min(100, updated.vinylSpeed + step);
-          if (adjustTarget === 'label') updated.label.scale = Math.min(5.0, updated.label.scale + step * 0.02);
           break;
         case 'ArrowUp':
           e.preventDefault();
@@ -293,14 +285,12 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-blank-template-2.p
           if (adjustTarget === 'platter') updated.platter.sizePct = Math.max(1, updated.platter.sizePct - step);
           if (adjustTarget === 'tonearm') updated.tonearm.lengthScale = Math.max(0.5, updated.tonearm.lengthScale - 0.05);
           if (adjustTarget === 'angles') updated.angles.END -= step;
-          if (adjustTarget === 'label') updated.label.scale = Math.max(0.1, updated.label.scale - step * 0.02);
           break;
         case ']':
           e.preventDefault();
           if (adjustTarget === 'platter') updated.platter.sizePct = Math.min(100, updated.platter.sizePct + step);
           if (adjustTarget === 'tonearm') updated.tonearm.lengthScale = Math.min(2.0, updated.tonearm.lengthScale + 0.05);
           if (adjustTarget === 'angles') updated.angles.END += step;
-          if (adjustTarget === 'label') updated.label.scale = Math.min(5.0, updated.label.scale + step * 0.02);
           break;
         case '-':
         case '_':
@@ -331,38 +321,6 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-blank-template-2.p
       setAspectRatio(ratio);
     }
   }, []);
-
-  // Handle panel dragging
-  useEffect(() => {
-    if (!isDraggingPanel) return;
-    
-    const handleMouseMove = (e: MouseEvent) => {
-      setPanelPosition({
-        x: e.clientX - dragOffset.x,
-        y: e.clientY - dragOffset.y
-      });
-    };
-    
-    const handleMouseUp = () => {
-      setIsDraggingPanel(false);
-    };
-    
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDraggingPanel, dragOffset]);
-
-  const handlePanelMouseDown = (e: React.MouseEvent) => {
-    setIsDraggingPanel(true);
-    setDragOffset({
-      x: e.clientX - panelPosition.x,
-      y: e.clientY - panelPosition.y
-    });
-  };
 
   const handleReferenceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -771,25 +729,17 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-blank-template-2.p
                 alt="Vinyl Record"
                 className="w-full h-full object-contain"
               />
-              {/* Center label overlay with wrapper for mask and auto-scaling */}
-              <div
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+              {/* Center label overlay */}
+              <img
+                src={labelImageUrl}
+                alt="Record Label"
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain"
                 style={{
                   width: '52%',
                   height: '52%',
                   zIndex: 2,
-                  transform: `scale(${config.label.scale})`,
-                  transformOrigin: 'center',
-                  maskImage: 'radial-gradient(circle, transparent 0%, transparent 7.8%, black 8.8%, black 49%, transparent 50%, transparent 100%)',
-                  WebkitMaskImage: 'radial-gradient(circle, transparent 0%, transparent 7.8%, black 8.8%, black 49%, transparent 50%, transparent 100%)',
                 }}
-              >
-                <img
-                  src={labelImageUrl}
-                  alt="Record Label"
-                  className="w-full h-full object-contain"
-                />
-              </div>
+              />
             </div>
           </div>
 
@@ -872,22 +822,8 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-blank-template-2.p
               </div>
 
               {/* Control Panel */}
-              <div 
-                className="bg-black/90 text-white p-4 rounded-lg text-xs font-mono pointer-events-auto max-w-md"
-                style={{
-                  position: 'fixed',
-                  left: `${panelPosition.x}px`,
-                  top: `${panelPosition.y}px`,
-                  cursor: isDraggingPanel ? 'grabbing' : 'grab'
-                }}
-              >
-                <div 
-                  className="font-bold mb-3 text-sm flex items-center gap-2 select-none"
-                  onMouseDown={handlePanelMouseDown}
-                >
-                  <span className="text-gray-400">⋮⋮</span>
-                  🎯 Calibration Mode
-                </div>
+              <div className="absolute top-4 left-4 bg-black/90 text-white p-4 rounded-lg text-xs font-mono pointer-events-auto max-w-md">
+                <div className="font-bold mb-3 text-sm">🎯 Calibration Mode</div>
                 
                 <div className="mb-3 space-y-1">
                   <div className={adjustTarget === 'platter' ? 'text-yellow-400 font-bold' : ''}>
@@ -911,19 +847,15 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-blank-template-2.p
                   <div className={adjustTarget === 'vinyl' ? 'text-yellow-400 font-bold' : ''}>
                     Vinyl Speed: {config.vinylSpeed.toFixed(1)}s per rotation
                   </div>
-                  <div className={adjustTarget === 'label' ? 'text-yellow-400 font-bold' : ''}>
-                    Label: Scale:{config.label.scale.toFixed(2)}
-                  </div>
                 </div>
 
                 <div className="mb-3 text-[10px] space-y-1 text-gray-300">
                   <div>Tab: Switch target ({adjustTarget})</div>
                   <div>Arrows: Move/Adjust (Shift=1.0/200ms, Alt=0.02/10ms)</div>
-                  <div>[ ]: Tonearm Length/Size/END angle/Label scale</div>
+                  <div>[ ]: Tonearm Length/Size/END angle</div>
                   <div>+/-: Tonearm Width</div>
                   <div>Tonearm Speed: Left/Right (Shift=200ms, Alt=10ms, default=50ms)</div>
                   <div>Vinyl: Left/Right arrows to adjust speed</div>
-                  <div>Label: Left/Right or [ ] to adjust scale</div>
                   <div>ESC: Exit calibration</div>
                 </div>
 
