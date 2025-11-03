@@ -25,6 +25,7 @@ A complete full-stack music management system with:
 - **Authentication**: Secure admin-only login system
 - **File Storage**: MP3 file upload to cloud storage
 - **Admin Dashboard**: Full CRUD operations for track management
+- **Label Images Management**: Upload, activate, and manage multiple vinyl label images
 - **Role-Based Access Control**: Separate user roles table with admin privileges
 - **Security**: Row-Level Security (RLS) policies on all tables
 - **Dynamic Features**: 
@@ -34,6 +35,7 @@ A complete full-stack music management system with:
   - Automatic metadata extraction from MP3 tags
   - Real-time UI updates with React Query
   - Track reordering
+  - Dynamic label image switching
 
 ---
 
@@ -81,6 +83,7 @@ src/
     useAuth.ts                   # Authentication hook
     useUserRole.ts               # Role checking hook  
     useTracks.ts                 # Track data management hook
+    useLabelImages.ts            # Label images management hook
   pages/
     Index.tsx                    # Public player page
     Auth.tsx                     # Admin login page
@@ -96,11 +99,12 @@ src/
 
 public/
   images/
-    turntable-base.png           # Main turntable body
-    vinyl-record.png             # The spinning record
+    turntable-base.png           # Main turntable body (must have clean, light center spindle)
+    vinyl-record.png             # The spinning record (MUST have transparent center hole)
     tonearm.png                  # Static tonearm image
     tonearm-animated.png         # Animated tonearm overlay
-    label-cobnet-strange.png     # Center label (customize!)
+    label-blank-template.png     # Default fallback label
+    label-cobnet-strange.png     # Example center label
   audio/
     needle-drop.wav              # Play start sound effect
     needle-stuck.wav             # Track end sound effect
@@ -188,6 +192,61 @@ as $$
 $$;
 ```
 
+#### `label_images` table
+Manages multiple label images with active selection:
+
+```sql
+create table public.label_images (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  image_url text not null,
+  is_active boolean default false,
+  uploaded_by uuid references auth.users(id) on delete cascade,
+  file_size bigint,
+  created_at timestamptz default now()
+);
+
+-- Enable RLS
+alter table public.label_images enable row level security;
+
+-- Policies
+create policy "Anyone can view label images"
+  on public.label_images for select
+  using (true);
+
+create policy "Admins can insert label images"
+  on public.label_images for insert
+  with check (public.has_role(auth.uid(), 'admin'::app_role));
+
+create policy "Admins can update label images"
+  on public.label_images for update
+  using (public.has_role(auth.uid(), 'admin'::app_role));
+
+create policy "Admins can delete label images"
+  on public.label_images for delete
+  using (public.has_role(auth.uid(), 'admin'::app_role));
+
+-- Trigger to ensure only one label is active at a time
+create or replace function public.ensure_single_active_label()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if NEW.is_active = true then
+    update label_images set is_active = false where id != NEW.id and is_active = true;
+  end if;
+  return NEW;
+end;
+$$;
+
+create trigger single_active_label_trigger
+  before insert or update on public.label_images
+  for each row
+  execute function public.ensure_single_active_label();
+```
+
 ### Storage Buckets
 
 #### `tracks` bucket
@@ -214,6 +273,34 @@ create policy "Admins can delete track files"
   on storage.objects for delete
   using (
     bucket_id = 'tracks' and
+    public.has_role(auth.uid(), 'admin'::app_role)
+  );
+```
+
+#### `label-images` bucket
+Stores label image files:
+
+```sql
+-- Create bucket
+insert into storage.buckets (id, name, public)
+values ('label-images', 'label-images', true);
+
+-- Storage policies
+create policy "Anyone can view label images"
+  on storage.objects for select
+  using (bucket_id = 'label-images');
+
+create policy "Admins can upload label images"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'label-images' and
+    public.has_role(auth.uid(), 'admin'::app_role)
+  );
+
+create policy "Admins can delete label images"
+  on storage.objects for delete
+  using (
+    bucket_id = 'label-images' and
     public.has_role(auth.uid(), 'admin'::app_role)
   );
 ```
@@ -309,6 +396,77 @@ create policy "Admins can delete track files"
     bucket_id = 'tracks' and
     public.has_role(auth.uid(), 'admin'::app_role)
   );
+
+-- Create label-images storage bucket
+insert into storage.buckets (id, name, public)
+values ('label-images', 'label-images', true);
+
+create policy "Anyone can view label images"
+  on storage.objects for select
+  using (bucket_id = 'label-images');
+
+create policy "Admins can upload label images"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'label-images' and
+    public.has_role(auth.uid(), 'admin'::app_role)
+  );
+
+create policy "Admins can delete label images"
+  on storage.objects for delete
+  using (
+    bucket_id = 'label-images' and
+    public.has_role(auth.uid(), 'admin'::app_role)
+  );
+
+-- Create label_images table
+create table public.label_images (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  image_url text not null,
+  is_active boolean default false,
+  uploaded_by uuid references auth.users(id) on delete cascade,
+  file_size bigint,
+  created_at timestamptz default now()
+);
+
+alter table public.label_images enable row level security;
+
+create policy "Anyone can view label images"
+  on public.label_images for select
+  using (true);
+
+create policy "Admins can insert label images"
+  on public.label_images for insert
+  with check (public.has_role(auth.uid(), 'admin'::app_role));
+
+create policy "Admins can update label images"
+  on public.label_images for update
+  using (public.has_role(auth.uid(), 'admin'::app_role));
+
+create policy "Admins can delete label images"
+  on public.label_images for delete
+  using (public.has_role(auth.uid(), 'admin'::app_role));
+
+-- Trigger function for single active label
+create or replace function public.ensure_single_active_label()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if NEW.is_active = true then
+    update label_images set is_active = false where id != NEW.id and is_active = true;
+  end if;
+  return NEW;
+end;
+$$;
+
+create trigger single_active_label_trigger
+  before insert or update on public.label_images
+  for each row
+  execute function public.ensure_single_active_label();
 ```
 
 ### Step 2: Create Your First Admin User
@@ -345,26 +503,54 @@ Create these files in your project (see code sections below):
 2. `src/hooks/useAuth.ts` - Authentication hook
 3. `src/hooks/useUserRole.ts` - Role checking hook
 4. `src/hooks/useTracks.ts` - Track data hook
-5. `src/utils/mp3Metadata.ts` - Metadata extraction utility
-6. `src/pages/Index.tsx` - Public player page
-7. `src/pages/Auth.tsx` - Admin login page
-8. `src/pages/Admin.tsx` - Admin dashboard
-9. Update `src/App.tsx` - Add routes
+5. `src/hooks/useLabelImages.ts` - Label images management hook
+6. `src/utils/mp3Metadata.ts` - Metadata extraction utility
+7. `src/pages/Index.tsx` - Public player page
+8. `src/pages/Auth.tsx` - Admin login page
+9. `src/pages/Admin.tsx` - Admin dashboard
+10. Update `src/App.tsx` - Add routes
 
 ### Step 5: Upload Required Assets
 
 Upload these files to the `public/` directory:
 
 **Images:**
-- `public/images/turntable-base.png`
-- `public/images/vinyl-record.png`
-- `public/images/tonearm.png`
-- `public/images/tonearm-animated.png`
-- `public/images/label-cobnet-strange.png`
+- `public/images/turntable-base.png` - Main turntable body
+- `public/images/vinyl-record.png` - The spinning record
+- `public/images/tonearm.png` - Static tonearm image
+- `public/images/tonearm-animated.png` - Animated tonearm overlay
+- `public/images/label-blank-template.png` - Default label (fallback)
+- `public/images/label-cobnet-strange.png` - Example label (optional)
 
 **Audio:**
 - `public/audio/needle-drop.wav`
 - `public/audio/needle-stuck.wav`
+
+**CRITICAL Image Requirements:**
+
+⚠️ **The vinyl player uses a 3-layer image stacking system:**
+1. Bottom layer: `turntable-base.png` (turntable body with center spindle)
+2. Middle layer: `vinyl-record.png` (the spinning vinyl disc)
+3. Top layer: label image (center label artwork)
+
+**Requirements to avoid dark spots/artifacts:**
+
+1. **`vinyl-record.png` - MUST have a transparent center hole:**
+   - The center area where the label sits must be **fully transparent** (alpha channel = 0%)
+   - NOT white, gray, or black - actual transparency
+   - Without this, you'll see a solid spot blocking the label
+   - Use an image editor (Photoshop, GIMP, etc.) to verify the alpha channel
+
+2. **`turntable-base.png` - Should have a clean, light-colored center spindle:**
+   - Avoid dark/black pixels in the center spindle area
+   - Dark colors "bleed through" transparent areas of vinyl and label
+   - Creates unwanted dark artifacts if not properly cleaned
+   - Use a light-colored or white spindle for best results
+
+3. **Label images - Can have transparent centers (optional):**
+   - Transparent centers show the turntable spindle (vintage vinyl aesthetic)
+   - Solid centers completely cover the spindle area (modern look)
+   - Both are supported - choose based on your design preference
 
 ---
 
@@ -380,8 +566,8 @@ import { Button } from "@/components/ui/button";
 import { Play, Pause, SkipBack, SkipForward, Settings, Copy, RotateCcw, AlertCircle } from "lucide-react";
 
 interface Track {
-  id: string;
-  dbId: string;
+  id: number;      // Sequential ID for UI display (1, 2, 3...)
+  dbId: string;    // UUID from database for backend operations
   title: string;
   artist: string;
   audioUrl: string;
@@ -941,8 +1127,8 @@ interface DbTrack {
 }
 
 export interface Track {
-  id: string;
-  dbId: string;
+  id: number;      // Sequential ID for UI display (1, 2, 3...)
+  dbId: string;    // UUID from database for backend operations
   title: string;
   artist: string;
   audioUrl: string;
@@ -959,9 +1145,9 @@ export function useTracks() {
       
       if (error) throw error;
       
-      return (data as DbTrack[]).map(track => ({
-        id: track.id,
-        dbId: track.id,
+      return (data as DbTrack[]).map((track, index) => ({
+        id: index + 1,        // Sequential ID for display
+        dbId: track.id,       // Keep UUID for database operations
         title: track.title,
         artist: track.artist,
         audioUrl: track.audio_url
@@ -1023,7 +1209,172 @@ export function useUpdateTrack() {
 }
 ```
 
-### 5. MP3 Metadata Utility
+### 5. Label Images Hook
+
+`src/hooks/useLabelImages.ts`:
+
+```tsx
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+
+export interface LabelImage {
+  id: string;
+  name: string;
+  image_url: string;
+  is_active: boolean;
+  uploaded_by: string | null;
+  file_size: number | null;
+  created_at: string;
+}
+
+// Fetch all label images
+export function useLabelImages() {
+  return useQuery({
+    queryKey: ['label-images'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('label_images')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data as LabelImage[];
+    }
+  });
+}
+
+// Fetch currently active label
+export function useActiveLabelImage() {
+  return useQuery({
+    queryKey: ['active-label'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('label_images')
+        .select('*')
+        .eq('is_active', true)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      return data as LabelImage | null;
+    }
+  });
+}
+
+// Upload new label image
+export function useUploadLabelImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (file: File) => {
+      // Upload to storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('label-images')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('label-images')
+        .getPublicUrl(fileName);
+
+      // Insert database record
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error: insertError } = await supabase
+        .from('label_images')
+        .insert({
+          name: file.name,
+          image_url: publicUrl,
+          is_active: false,
+          uploaded_by: user?.id,
+          file_size: file.size,
+        });
+
+      if (insertError) throw insertError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['label-images'] });
+      toast({ title: 'Label image uploaded successfully' });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: 'Error uploading label image',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+}
+
+// Set active label
+export function useSetActiveLabelImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (labelId: string) => {
+      const { error } = await supabase
+        .from('label_images')
+        .update({ is_active: true })
+        .eq('id', labelId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['label-images'] });
+      queryClient.invalidateQueries({ queryKey: ['active-label'] });
+      toast({ title: 'Active label updated successfully' });
+    },
+    onError: () => {
+      toast({ 
+        title: 'Error updating active label',
+        variant: 'destructive'
+      });
+    }
+  });
+}
+
+// Delete label image
+export function useDeleteLabelImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ labelId, imageUrl }: { labelId: string; imageUrl: string }) => {
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from('label_images')
+        .delete()
+        .eq('id', labelId);
+      
+      if (dbError) throw dbError;
+
+      // Delete from storage
+      const fileName = imageUrl.split('/').pop();
+      if (fileName) {
+        await supabase.storage
+          .from('label-images')
+          .remove([fileName]);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['label-images'] });
+      queryClient.invalidateQueries({ queryKey: ['active-label'] });
+      toast({ title: 'Label image deleted successfully' });
+    },
+    onError: () => {
+      toast({ 
+        title: 'Error deleting label image',
+        variant: 'destructive'
+      });
+    }
+  });
+}
+```
+
+### 6. MP3 Metadata Utility
 
 `src/utils/mp3Metadata.ts`:
 
@@ -1056,7 +1407,7 @@ export async function extractMp3Metadata(file: File): Promise<Mp3Metadata> {
 }
 ```
 
-### 6. Index Page (Public Player)
+### 7. Index Page (Public Player)
 
 `src/pages/Index.tsx`:
 
@@ -1064,6 +1415,7 @@ export async function extractMp3Metadata(file: File): Promise<Mp3Metadata> {
 import { useNavigate } from "react-router-dom";
 import VinylPlayer from "@/components/VinylPlayer";
 import { useTracks } from "@/hooks/useTracks";
+import { useActiveLabelImage } from "@/hooks/useLabelImages";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
@@ -1072,8 +1424,9 @@ import { useUserRole } from "@/hooks/useUserRole";
 const Index = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data: role } = useUserRole(user?.id);
   const { data: tracks, isLoading } = useTracks();
+  const { data: activeLabel } = useActiveLabelImage();
+  const { data: role } = useUserRole(user?.id);
 
   if (isLoading) {
     return (
@@ -1095,7 +1448,10 @@ const Index = () => {
       )}
       
       {tracks && tracks.length > 0 ? (
-        <VinylPlayer tracks={tracks} labelImageUrl="/images/label-cobnet-strange.png" />
+        <VinylPlayer 
+          tracks={tracks} 
+          labelImageUrl={activeLabel?.image_url || "/images/label-blank-template.png"} 
+        />
       ) : (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
           <div className="text-center text-white">
@@ -1606,13 +1962,43 @@ export default App;
 
 ## 🎨 Customization
 
-### Custom Label Image
+### Custom Label Images
 
-Replace `/images/label-cobnet-strange.png` with your own label design. Recommended:
-- Square image (1:1 aspect ratio)
-- PNG format with transparency
-- 500x500px minimum
-- Circular design works best
+The VinylPlayer now supports **multiple label images** with dynamic switching via the Admin Dashboard:
+
+**Admin Dashboard Method (Recommended):**
+1. Log into Admin dashboard at `/admin`
+2. Scroll to the "Label Images" section
+3. Click "Upload Label Image"
+4. Select PNG, JPG, JPEG, or WebP (max 5MB)
+5. Click the "Set Active" button on any label to make it the current label
+6. Delete unused labels with the trash icon
+7. Active label shows immediately on the player
+
+**Label Design Requirements:**
+- Square image recommended (1:1 aspect ratio)
+- PNG format recommended for transparency support
+- 500x500px minimum resolution
+- Circular design works best (fits vinyl aesthetic)
+
+**Transparency Options:**
+- **Transparent center**: Shows the turntable spindle (vintage record look)
+  - Requires `vinyl-record.png` to have transparent center
+  - Creates authentic vinyl record appearance
+  - Label appears to "float" on the spindle
+- **Solid center**: Completely covers the center area
+  - Works with any `vinyl-record.png`
+  - Modern, clean look
+
+**Direct File Replacement (Legacy Method):**
+You can still replace `/images/label-blank-template.png` directly as a fallback, but this will be overridden if an admin sets an active label in the database. The default fallback is only used when no label is marked as active.
+
+**Design Tips:**
+- Use contrasting colors for better visibility while spinning
+- Consider how the label looks both static and rotating
+- Test with both light and dark center spindles
+- Circular text works well for rotating labels
+- Include branding or track info for custom player experiences
 
 ### Adjust Player Layout
 
@@ -1764,6 +2150,35 @@ These are auto-configured by Lovable Cloud:
 - Check image paths match component code
 - Clear browser cache
 
+**Dark spots or artifacts on labels**
+- **Symptom**: Small dark spot or black pixels visible in the center of the record label
+- **Cause**: The vinyl player uses a 3-layer image stacking system:
+  1. Bottom: `turntable-base.png` (turntable body with spindle)
+  2. Middle: `vinyl-record.png` (the spinning record)
+  3. Top: label image (center label artwork)
+- **Dark spots occur when**:
+  - `vinyl-record.png` doesn't have a transparent center hole
+  - `turntable-base.png` has dark/black pixels in the spindle area
+  - These dark pixels "bleed through" the transparent areas
+- **Solution Checklist**:
+  1. ✅ Verify `vinyl-record.png` has a **fully transparent center**
+     - Use an image editor (Photoshop, GIMP, etc.)
+     - Check the alpha channel - should be 0% opacity in center
+     - Not white, gray, or black - actual transparency
+  2. ✅ Check `turntable-base.png` has a **clean, light-colored spindle**
+     - Inspect center spindle area for dark pixels
+     - Use image editor to lighten or clean the center
+     - Avoid pure black (#000000) in spindle region
+  3. ✅ Test with a label that has a transparent center
+     - Upload a test label with transparent center
+     - Verify the spindle shows through cleanly
+     - Adjust turntable-base.png if dark artifacts appear
+  4. ✅ Consider label design approach
+     - Transparent centers: Vintage vinyl aesthetic (shows spindle)
+     - Solid centers: Modern look (covers spindle completely)
+     - Both are supported, choose based on your design preference
+- **Pro Tip**: The images included with this project are already fixed for proper transparency. If you're creating new images, use these as reference for proper transparency handling.
+
 ---
 
 ## 🎓 Architecture Overview
@@ -1776,6 +2191,8 @@ User Action → Admin Page → Supabase Client → Database/Storage
           React Query Cache
                 ↓
           Index Page → VinylPlayer Component → Audio Playback
+                ↓
+         Active Label Query → Display Current Label
 ```
 
 ### Authentication Flow
@@ -1801,6 +2218,36 @@ Admin Selects File → Extract Metadata → Upload to Storage → Get Public URL
                                                                     ↓
                                                               UI Updates
 ```
+
+### Label Images Management Flow
+
+1. **Upload Process:**
+   - Admin uploads image via Admin dashboard
+   - File validated (format, size, MIME type)
+   - Uploaded to `label-images` storage bucket
+   - Database record created in `label_images` table
+   - `is_active` defaults to false
+
+2. **Activation Process:**
+   - Admin clicks "Set Active" on desired label
+   - Database trigger `ensure_single_active_label()` fires
+   - Previous active label automatically deactivated (is_active = false)
+   - New label set to active (is_active = true)
+   - Query cache invalidated for immediate UI update
+
+3. **Display Process:**
+   - Index.tsx calls `useActiveLabelImage()` hook
+   - Hook queries for label with `is_active = true`
+   - Returns active label URL or null
+   - VinylPlayer uses active label or falls back to default (`/images/label-blank-template.png`)
+   - Player displays label on spinning vinyl
+
+4. **Deletion Process:**
+   - Admin clicks delete on label
+   - Database record deleted first
+   - Storage file removed second (cleanup)
+   - If deleted label was active, no label is active (shows default)
+   - Query cache invalidated to update UI
 
 ---
 
