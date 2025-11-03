@@ -778,17 +778,23 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-blank-template-2.p
                   width: '52%',
                   height: '52%',
                   zIndex: 2,
-                  transform: `scale(${config.label.scale})`,
-                  transformOrigin: 'center',
                   maskImage: 'radial-gradient(circle, transparent 0%, transparent 7.8%, black 8.8%, black 49%, transparent 50%, transparent 100%)',
                   WebkitMaskImage: 'radial-gradient(circle, transparent 0%, transparent 7.8%, black 8.8%, black 49%, transparent 50%, transparent 100%)',
                 }}
               >
-                <img
-                  src={labelImageUrl}
-                  alt="Record Label"
-                  className="w-full h-full object-contain"
-                />
+                <div
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full"
+                  style={{
+                    transform: `scale(${config.label.scale})`,
+                    transformOrigin: 'center',
+                  }}
+                >
+                  <img
+                    src={labelImageUrl}
+                    alt="Record Label"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
               </div>
             </div>
           </div>
