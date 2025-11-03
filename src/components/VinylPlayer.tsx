@@ -61,6 +61,7 @@ const STORAGE_KEY = 'vinyl-player-config-v8';
 const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png' }: VinylPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isStartingPlayback, setIsStartingPlayback] = useState(false);
+  const [isInitialPlay, setIsInitialPlay] = useState(true); // Track if this is the very first play
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [calibrationMode, setCalibrationMode] = useState(false);
@@ -437,6 +438,7 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
     stopRunoutSound();
     setIsLastTrackFinished(false);
     setIsPlaying(false);
+    setIsInitialPlay(true); // Reset so next play simulates placing needle again
     const audio = audioRef.current;
     if (audio) {
       audio.currentTime = 0;
@@ -500,9 +502,10 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
     
     // Wait for tonearm animation, then play needle drop and start track
     const playTimer = setTimeout(() => {
-      // Only play needle drop sound for the first track (simulating initial needle placement)
-      if (currentTrackIndex === 0) {
+      // Only play needle drop sound for the very first play (simulating initial needle placement)
+      if (isInitialPlay) {
         playNeedleDropSound();
+        setIsInitialPlay(false); // Mark that we've done the initial play
       }
       audio.play().catch((error) => {
         console.error('Playback failed during track change:', error);
