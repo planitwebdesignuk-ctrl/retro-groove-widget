@@ -373,8 +373,9 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
         setIsLastTrackFinished(true);
         playRunoutSound();
       } else {
-        // Auto-advance to next track
+        // Auto-advance to next track WITH playback sequence
         setCurrentTrackIndex(currentTrackIndex + 1);
+        setIsStartingPlayback(true);
       }
     };
 
