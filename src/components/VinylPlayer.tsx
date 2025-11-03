@@ -773,11 +773,13 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-blank-template-2.p
               />
               {/* Center label overlay with wrapper for mask and auto-scaling */}
               <div
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden"
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
                 style={{
                   width: '52%',
                   height: '52%',
                   zIndex: 2,
+                  transform: `scale(${config.label.scale})`,
+                  transformOrigin: 'center',
                   maskImage: 'radial-gradient(circle, transparent 0%, transparent 7.8%, black 8.8%, black 49%, transparent 50%, transparent 100%)',
                   WebkitMaskImage: 'radial-gradient(circle, transparent 0%, transparent 7.8%, black 8.8%, black 49%, transparent 50%, transparent 100%)',
                 }}
@@ -786,10 +788,6 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-blank-template-2.p
                   src={labelImageUrl}
                   alt="Record Label"
                   className="w-full h-full object-contain"
-                  style={{
-                    transform: `scale(${config.label.scale})`,
-                    transformOrigin: 'center',
-                  }}
                 />
               </div>
             </div>
