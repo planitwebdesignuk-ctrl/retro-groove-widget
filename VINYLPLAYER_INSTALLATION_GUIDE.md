@@ -398,7 +398,7 @@ create policy "Admins can delete track files"
   );
 
 -- Create label-images storage bucket
-insert into storage.buckets (id, name, public)
+inse rt into storage.buckets (id, name, public)
 values ('label-images', 'label-images', true);
 
 create policy "Anyone can view label images"
