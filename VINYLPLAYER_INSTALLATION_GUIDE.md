@@ -604,32 +604,43 @@ interface VinylPlayerProps {
   labelImageUrl?: string;
 }
 
+// Centralized configuration for all visual elements
 const DEFAULT_CONFIG = {
-  platterSize: 85,
-  platterTop: 10,
-  platterLeft: 7.5,
-  tonearmWidth: 45,
-  tonearmHeight: 45,
-  tonearmTop: 8,
-  tonearmRight: 8,
-  tonearmPivotX: 15,
-  tonearmPivotY: 15,
-  tonearmRestAngle: -30,
-  tonearmPlayingAngle: 25,
-  animationDuration: 2,
-  animationEasing: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
-  progressBarHeight: 6,
-  progressBarColor: '#dc2626',
-  progressBarBackground: 'rgba(220, 38, 38, 0.2)',
-  vinylRotationSpeed: 2,
-  labelSize: 52,
-  scrubEnabled: true,
-  scrubSensitivity: 0.1,
-  returnTonearmOnScrub: false,
-  tonearmReturnDuration: 1,
-  showTrackInfo: true,
-  autoAdvance: true,
-  keyboardShortcuts: true,
+  configVersion: 8,
+  base: {
+    aspectRatio: 1.18, // Updated after image loads
+  },
+  platter: {
+    leftPct: 12.9,
+    topPct: 10.7,
+    sizePct: 55.8,
+  },
+  tonearm: {
+    rightPct: 18.0,
+    topPct: 10.1,
+    widthPct: 17.1,
+    lengthScale: 1.20,
+    pivotXPct: 87.9,
+    pivotYPct: 9.8,
+  },
+  angles: {
+    REST: -0.6,
+    START: 14.0,
+    END: 30.9,
+  },
+  tonearmSpeed: {
+    playMs: 1800,
+    stopMs: 1200,
+    playEasing: 'ease-out',
+    stopEasing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+  },
+  vinylSpeed: 5, // seconds per rotation
+  scrubbing: {
+    enabled: true,
+    showHandle: true,
+    scratchSoundsEnabled: true,
+    skipSeconds: 10,
+  },
 };
 
 type PlayerConfig = typeof DEFAULT_CONFIG;
