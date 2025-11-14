@@ -998,7 +998,8 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
               </div>
             </div>
           )}
-        </div> {/* End vinyl-player-base */}
+          {/* End vinyl-player-base */}
+        </div>
 
         {/* Track Info & Controls */}
         <div className="mt-8 rounded-xl bg-card p-6 shadow-lg">
@@ -1170,8 +1171,10 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
           <source src={currentTrack?.audioUrl || ''} type="audio/mpeg" />
           Your browser does not support the audio element.
         </audio>
-      </div> {/* End vinyl-player-container */}
-    </div> {/* End vinyl-player-root */}
+        {/* End vinyl-player-container */}
+      </div>
+      {/* End vinyl-player-root */}
+    </div>
   );
 };
 
