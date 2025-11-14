@@ -4,6 +4,63 @@ This guide contains everything you need to add the VinylPlayer component with co
 
 ---
 
+## ⚠️ BEFORE YOU BEGIN - READ THIS FIRST
+
+### Critical Success Factors
+
+This installation has **ZERO tolerance for skipped steps**. Every section must be completed exactly as written.
+
+**Common Reasons for Failure:**
+1. ❌ Skipping the `handle_new_user()` trigger → Authentication breaks
+2. ❌ Not uploading all asset files → Player shows blank/broken
+3. ❌ Missing any of the 10 required code files → Runtime errors
+4. ❌ Not creating admin user → Can't access admin dashboard
+5. ❌ Not installing `music-metadata-browser` → Upload features fail
+
+### Complete Installation Checklist
+
+Print this checklist and verify each item:
+
+**Backend Setup:**
+- [ ] Ran COMPLETE database migration (includes 3 functions + 2 triggers)
+- [ ] Verified 3 tables created: `tracks`, `user_roles`, `label_images`
+- [ ] Verified 2 storage buckets created: `tracks`, `label-images`
+- [ ] Created first admin user manually
+- [ ] Tested admin login works
+
+**Dependencies:**
+- [ ] Installed `music-metadata-browser` package
+
+**Code Files (All 10 Required):**
+- [ ] `src/components/VinylPlayer.tsx`
+- [ ] `src/hooks/useAuth.ts`
+- [ ] `src/hooks/useUserRole.ts`
+- [ ] `src/hooks/useTracks.ts`
+- [ ] `src/hooks/useLabelImages.ts`
+- [ ] `src/utils/mp3Metadata.ts`
+- [ ] `src/pages/Index.tsx`
+- [ ] `src/pages/Auth.tsx`
+- [ ] `src/pages/Admin.tsx`
+- [ ] `src/App.tsx` (routes updated)
+
+**Assets (All 7 Required):**
+- [ ] `public/images/turntable-base.png`
+- [ ] `public/images/vinyl-record.png`
+- [ ] `public/images/Tonearm.png`
+- [ ] `public/images/label-blank-template.png`
+- [ ] `public/images/record-label.png`
+- [ ] `public/audio/needle-drop.wav`
+- [ ] `public/audio/needle-stuck.wav`
+
+**Final Verification:**
+- [ ] Homepage loads without errors
+- [ ] Can log in as admin at `/auth`
+- [ ] Can access admin dashboard at `/admin`
+- [ ] Can upload MP3 files
+- [ ] Player displays and plays tracks
+
+---
+
 ## 📦 What You'll Get
 
 ### Frontend Features
@@ -336,7 +393,19 @@ create policy "Admins can delete label images"
 
 ## 🔧 Installation Steps
 
+⚠️ **CRITICAL CHECKLIST - DO NOT SKIP ANY STEPS:**
+
+- [ ] Step 1: Run the COMPLETE database migration (includes ALL triggers and functions)
+- [ ] Step 2: Create your first admin user
+- [ ] Step 3: Install `music-metadata-browser` dependency
+- [ ] Step 4: Create ALL component files (10 files total)
+- [ ] Step 5: Upload ALL required assets (5 images + 2 audio files)
+- [ ] Step 6: Test authentication and admin access
+- [ ] Step 7: Verify all features work
+
 ### Step 1: Set Up Backend (Database & Storage)
+
+**⚠️ IMPORTANT: This is ONE COMPLETE migration. Copy the ENTIRE SQL block below.**
 
 If using **Lovable Cloud**, run this migration:
 
@@ -425,7 +494,7 @@ create policy "Admins can delete track files"
   );
 
 -- Create label-images storage bucket
-inse rt into storage.buckets (id, name, public)
+insert into storage.buckets (id, name, public)
 values ('label-images', 'label-images', true);
 
 create policy "Anyone can view label images"
@@ -494,7 +563,34 @@ create trigger single_active_label_trigger
   before insert or update on public.label_images
   for each row
   execute function public.ensure_single_active_label();
+
+-- ⚠️ CRITICAL: Automatic role assignment for new users
+-- This trigger ensures new signups get the 'user' role automatically
+-- WITHOUT THIS, authentication will fail for new users
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.user_roles (user_id, role)
+  values (new.id, 'user');
+  return new;
+end;
+$$;
+
+-- Trigger that fires when a new user signs up
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
 ```
+
+**✅ VERIFICATION:** After running this migration, you should have:
+- ✅ 3 tables: `tracks`, `user_roles`, `label_images`
+- ✅ 2 storage buckets: `tracks`, `label-images`
+- ✅ 3 functions: `has_role()`, `ensure_single_active_label()`, `handle_new_user()`
+- ✅ 2 triggers: `single_active_label_trigger`, `on_auth_user_created`
 
 ### Step 2: Create Your First Admin User
 
@@ -524,29 +620,40 @@ music-metadata-browser
 
 ### Step 4: Create Component Files
 
-Create these files in your project (see code sections below):
+**⚠️ CRITICAL: You MUST create ALL 10 files below. Missing any file will cause errors.**
 
-1. `src/components/VinylPlayer.tsx` - Main player component
-2. `src/hooks/useAuth.ts` - Authentication hook
-3. `src/hooks/useUserRole.ts` - Role checking hook
-4. `src/hooks/useTracks.ts` - Track data hook
-5. `src/hooks/useLabelImages.ts` - Label images management hook
-6. `src/utils/mp3Metadata.ts` - Metadata extraction utility
-7. `src/pages/Index.tsx` - Public player page
-8. `src/pages/Auth.tsx` - Admin login page
-9. `src/pages/Admin.tsx` - Admin dashboard
-10. Update `src/App.tsx` - Add routes
+Create these files in your project (full code provided in sections below):
+
+- [ ] 1. `src/components/VinylPlayer.tsx` - Main player component (REQUIRED)
+- [ ] 2. `src/hooks/useAuth.ts` - Authentication hook (REQUIRED)
+- [ ] 3. `src/hooks/useUserRole.ts` - Role checking hook (REQUIRED)
+- [ ] 4. `src/hooks/useTracks.ts` - Track data hook (REQUIRED)
+- [ ] 5. `src/hooks/useLabelImages.ts` - Label images management hook (REQUIRED)
+- [ ] 6. `src/utils/mp3Metadata.ts` - Metadata extraction utility (REQUIRED)
+- [ ] 7. `src/pages/Index.tsx` - Public player page (REQUIRED)
+- [ ] 8. `src/pages/Auth.tsx` - Admin login page (REQUIRED)
+- [ ] 9. `src/pages/Admin.tsx` - Admin dashboard (REQUIRED)
+- [ ] 10. Update `src/App.tsx` - Add routes (REQUIRED)
+
+**📝 Find the complete code for each file in the sections below starting at line ~560.**
 
 ### Step 5: Upload Required Assets
 
+**⚠️ CRITICAL: The player will NOT work without these assets.**
+
 Upload these files to the `public/` directory:
 
-**Images:**
-- `public/images/turntable-base.png` - Main turntable body
-- `public/images/vinyl-record.png` - The spinning record (MUST have transparent center hole)
-- `public/images/Tonearm.png` - Tonearm with transparent background
-- `public/images/label-blank-template.png` - Default label (fallback)
-- `public/images/label-cobnet-strange.png` - Example label (optional)
+**Images (5 REQUIRED + 1 optional):**
+- [ ] `public/images/turntable-base.png` - Main turntable body (REQUIRED)
+- [ ] `public/images/vinyl-record.png` - The spinning record - MUST have transparent center hole (REQUIRED)
+- [ ] `public/images/Tonearm.png` - Tonearm with transparent background (REQUIRED)
+- [ ] `public/images/label-blank-template.png` - Default label fallback (REQUIRED)
+- [ ] `public/images/record-label.png` - Another label option (REQUIRED)
+- [ ] `public/images/label-cobnet-strange.png` - Example label (optional)
+
+**Audio Files (2 REQUIRED):**
+- [ ] `public/audio/needle-drop.wav` - Play start sound effect (REQUIRED)
+- [ ] `public/audio/needle-stuck.wav` - Track end sound effect (REQUIRED)
 
 **Audio:**
 - `public/audio/needle-drop.wav`
@@ -2401,6 +2508,150 @@ Admin Selects File → Extract Metadata → Upload to Storage → Get Public URL
    - Storage file removed second (cleanup)
    - If deleted label was active, no label is active (shows default)
    - Query cache invalidated to update UI
+
+---
+
+## ✅ POST-INSTALLATION VERIFICATION
+
+**Run through this checklist after completing all installation steps:**
+
+### 1. Database Verification
+
+Run these SQL queries to verify database setup:
+
+```sql
+-- Should return 3 tables
+SELECT table_name FROM information_schema.tables 
+WHERE table_schema = 'public' 
+AND table_name IN ('tracks', 'user_roles', 'label_images');
+
+-- Should return 2 functions + 1 for has_role
+SELECT routine_name FROM information_schema.routines 
+WHERE routine_schema = 'public'
+AND routine_name IN ('has_role', 'ensure_single_active_label', 'handle_new_user');
+
+-- Check if triggers exist
+SELECT trigger_name FROM information_schema.triggers
+WHERE trigger_schema = 'public'
+AND trigger_name IN ('single_active_label_trigger', 'on_auth_user_created');
+
+-- Verify storage buckets
+SELECT name FROM storage.buckets WHERE name IN ('tracks', 'label-images');
+```
+
+**Expected Results:**
+- ✅ 3 tables found
+- ✅ 3 functions found
+- ✅ 2 triggers found
+- ✅ 2 storage buckets found
+
+### 2. File Structure Verification
+
+Check that all these files exist in your project:
+
+```bash
+src/components/VinylPlayer.tsx ✓
+src/hooks/useAuth.ts ✓
+src/hooks/useUserRole.ts ✓
+src/hooks/useTracks.ts ✓
+src/hooks/useLabelImages.ts ✓
+src/utils/mp3Metadata.ts ✓
+src/pages/Index.tsx ✓
+src/pages/Auth.tsx ✓
+src/pages/Admin.tsx ✓
+public/images/turntable-base.png ✓
+public/images/vinyl-record.png ✓
+public/images/Tonearm.png ✓
+public/images/label-blank-template.png ✓
+public/images/record-label.png ✓
+public/audio/needle-drop.wav ✓
+public/audio/needle-stuck.wav ✓
+```
+
+### 3. Dependency Verification
+
+```bash
+# Check if music-metadata-browser is installed
+# Look for it in package.json dependencies
+```
+
+### 4. Functionality Testing
+
+**Test each feature in this order:**
+
+1. **Homepage Test:**
+   - ✅ Navigate to `/`
+   - ✅ Page loads without console errors
+   - ✅ Vinyl player displays (even with no tracks)
+
+2. **Authentication Test:**
+   - ✅ Navigate to `/auth`
+   - ✅ Login form displays
+   - ✅ Can log in with admin credentials
+   - ✅ Redirects to admin dashboard after login
+
+3. **Admin Dashboard Test:**
+   - ✅ Navigate to `/admin`
+   - ✅ Dashboard displays track list
+   - ✅ "Upload Track" button visible
+   - ✅ Label images section visible
+
+4. **Upload Test:**
+   - ✅ Click "Upload Track"
+   - ✅ Can select MP3 file
+   - ✅ Metadata auto-fills (title, artist)
+   - ✅ Upload completes successfully
+   - ✅ Track appears in list
+
+5. **Playback Test:**
+   - ✅ Go back to homepage
+   - ✅ Uploaded track appears
+   - ✅ Click play button
+   - ✅ Vinyl spins
+   - ✅ Tonearm moves
+   - ✅ Audio plays
+   - ✅ Progress bar updates
+
+6. **Label Management Test:**
+   - ✅ Go to admin dashboard
+   - ✅ Upload label image
+   - ✅ Activate label
+   - ✅ Go to homepage
+   - ✅ Label displays on vinyl
+
+### 5. Common Issues Checklist
+
+If something doesn't work, check:
+
+- [ ] **"Can't log in"** → Did you create admin user in Step 2?
+- [ ] **"No tracks showing"** → Did you upload at least one track?
+- [ ] **"Upload fails"** → Is `music-metadata-browser` installed?
+- [ ] **"Blank vinyl"** → Are image assets uploaded to `public/images/`?
+- [ ] **"No sound"** → Are audio assets uploaded to `public/audio/`?
+- [ ] **"Permission denied"** → Check RLS policies and admin role
+- [ ] **"Tonearm wrong size"** → `DEFAULT_CONFIG` not copied correctly
+- [ ] **"New users can't sign up"** → Missing `handle_new_user()` trigger
+
+### 6. Emergency Troubleshooting
+
+**If installation fails completely:**
+
+1. **Check console logs** - Look for specific error messages
+2. **Verify all 10 code files exist** - Missing files cause import errors
+3. **Check database migration completed** - Run verification SQL above
+4. **Verify asset files uploaded** - Check browser Network tab for 404s
+5. **Check you created admin user** - Run: `select * from user_roles;`
+6. **Clear browser cache** - Old cached code can cause issues
+
+**Still broken? Check these critical items:**
+
+| Issue | Fix |
+|-------|-----|
+| Auth errors | Missing `handle_new_user()` trigger in migration |
+| Upload fails | `music-metadata-browser` not installed |
+| Permission denied | Admin role not assigned to user |
+| Visual glitches | Asset files missing or wrong paths |
+| Playback fails | Audio files missing from `public/audio/` |
 
 ---
 
