@@ -683,7 +683,6 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
         width: '100%',
         maxWidth: '1200px',
         margin: '0 auto',
-        aspectRatio: aspectRatio.toString(),
         containerType: 'inline-size',
         // CSS custom properties for positioning
         '--platter-left': config.platter.leftPct,
@@ -699,7 +698,7 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
       <div className="vinyl-player-container animate-fade-in" style={{
         position: 'relative',
         width: '100%',
-        height: '100%',
+        aspectRatio: aspectRatio.toString(),
         overflow: 'hidden',
         borderRadius: '1rem',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
@@ -1000,8 +999,10 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
           )}
           {/* End vinyl-player-base */}
         </div>
+        {/* End vinyl-player-container */}
+      </div>
 
-        {/* Track Info & Controls */}
+      {/* Track Info & Controls */}
         <div className="mt-8 rounded-xl bg-card p-6 shadow-lg">
           <div className="mb-6 text-center">
             <h2 className="mb-2 text-2xl font-bold text-card-foreground">
@@ -1166,13 +1167,11 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
           </div>
         </div>
 
-        {/* Hidden Audio Element */}
-        <audio ref={audioRef} preload="metadata">
-          <source src={currentTrack?.audioUrl || ''} type="audio/mpeg" />
-          Your browser does not support the audio element.
-        </audio>
-        {/* End vinyl-player-container */}
-      </div>
+      {/* Hidden Audio Element */}
+      <audio ref={audioRef} preload="metadata">
+        <source src={currentTrack?.audioUrl || ''} type="audio/mpeg" />
+        Your browser does not support the audio element.
+      </audio>
       {/* End vinyl-player-root */}
     </div>
   );
