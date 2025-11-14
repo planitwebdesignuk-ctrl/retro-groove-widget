@@ -101,8 +101,7 @@ public/
   images/
     turntable-base.png           # Main turntable body (must have clean, light center spindle)
     vinyl-record.png             # The spinning record (MUST have transparent center hole)
-    tonearm.png                  # Static tonearm image
-    tonearm-animated.png         # Animated tonearm overlay
+    Tonearm.png                  # Tonearm with transparent background
     label-blank-template.png     # Default fallback label
     label-cobnet-strange.png     # Example center label
   audio/
@@ -516,9 +515,8 @@ Upload these files to the `public/` directory:
 
 **Images:**
 - `public/images/turntable-base.png` - Main turntable body
-- `public/images/vinyl-record.png` - The spinning record
-- `public/images/tonearm.png` - Static tonearm image
-- `public/images/tonearm-animated.png` - Animated tonearm overlay
+- `public/images/vinyl-record.png` - The spinning record (MUST have transparent center hole)
+- `public/images/Tonearm.png` - Tonearm with transparent background
 - `public/images/label-blank-template.png` - Default label (fallback)
 - `public/images/label-cobnet-strange.png` - Example label (optional)
 

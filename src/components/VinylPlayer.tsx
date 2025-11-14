@@ -827,7 +827,7 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
             }}
           >
             <img
-              src="/images/tonearm-animated.png"
+              src="/images/Tonearm.png"
               alt="Tonearm"
               style={{
                 width: '100%',
