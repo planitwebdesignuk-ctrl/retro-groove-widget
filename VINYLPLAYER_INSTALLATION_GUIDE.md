@@ -2179,6 +2179,122 @@ These are auto-configured by Lovable Cloud:
      - Both are supported, choose based on your design preference
 - **Pro Tip**: The images included with this project are already fixed for proper transparency. If you're creating new images, use these as reference for proper transparency handling.
 
+**Elements don't align correctly (vinyl, tonearm, label)**
+- ✅ Use **Calibration Mode** to adjust positioning (click 🎯 button)
+- ✅ Verify image assets have correct transparency:
+  - `vinyl-record.png` MUST have transparent center hole
+  - `turntable-base.png` should have clean, light spindle area
+- ✅ Check that you haven't overridden component CSS with global styles
+- ✅ Ensure parent container doesn't force dimensions (e.g., `h-[400px]`)
+
+**Player looks squashed or stretched**
+- ✅ Remove any `height` or `aspect-ratio` overrides on parent containers
+- ✅ Let the component use its intrinsic aspect ratio (1.18:1 for turntable)
+- ✅ Use only `padding`, `margin`, or `max-width` on parent containers, not `width` or `height`
+
+**Controls (track info, progress bar) are cut off or hidden**
+- ✅ Ensure the parent container doesn't have `overflow: hidden`
+- ✅ Give the parent container sufficient vertical space (`min-h-screen` or similar)
+- ✅ Avoid placing the component in a fixed-height container
+- ✅ The component structure places controls OUTSIDE the turntable container, so they flow naturally—verify you're using the latest component code
+
+### CSS Conflicts
+
+**External styles affecting player appearance**
+
+The component uses `all: unset` on its root wrapper for CSS isolation. However, some aggressive global styles may still interfere:
+
+- ✅ Check for global `* { }` selectors overriding everything
+- ✅ Verify no `!important` rules targeting the player's class names
+- ✅ Use browser DevTools to inspect computed styles and identify conflicts
+- ✅ If needed, add `!important` to critical player styles (though this shouldn't be necessary)
+
+### Understanding the Component Structure
+
+**Visual Hierarchy:**
+```
+<div class="vinyl-player-root">  ← CSS isolation, self-contained sizing
+  │
+  ├─ <div class="vinyl-player-container">  ← Fixed aspect ratio (1.18:1)
+  │   │                                      overflow: hidden
+  │   │                                      turntable boundary
+  │   ├─ Turntable base image
+  │   ├─ Vinyl platter (spinning, CSS custom properties for position)
+  │   ├─ Tonearm (animated, CSS custom properties for position)
+  │   └─ Center label (CSS custom properties for position)
+  │
+  └─ <div class="controls">  ← Flexible layout, flows below turntable
+      ├─ Track info
+      ├─ Progress bar
+      ├─ Playback controls
+      └─ Track list
+```
+
+**Why This Structure?**
+- **Separation of concerns**: Turntable (visual) and controls (functional) are independent
+- **Aspect ratio preservation**: Only the turntable needs fixed proportions
+- **Responsive controls**: Track list and buttons can reflow on mobile without affecting turntable
+- **Overflow management**: Turntable has `overflow: hidden` for clean edges; controls need space to expand
+
+**Key CSS Properties:**
+```css
+.vinyl-player-root {
+  all: unset;                    /* Reset external styles */
+  display: block;
+  position: relative;
+  width: 100%;
+  max-width: 1200px;             /* Prevents oversizing */
+  margin: 0 auto;                /* Self-centering */
+  container-type: inline-size;   /* Container queries */
+}
+
+.vinyl-player-container {
+  aspect-ratio: 1.18;            /* Turntable proportions */
+  overflow: hidden;              /* Clean edges */
+  border-radius: 1rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+```
+
+---
+
+## 📚 Best Practices
+
+### ✅ DO:
+- Use the component with a simple semantic wrapper (`<main>`, `<section>`, etc.)
+- Provide adequate padding around the player (`p-4` or `p-8`)
+- Allow vertical space for controls (`min-h-screen` or similar)
+- Use the calibration mode for fine-tuning positioning
+- Test on multiple screen sizes to ensure responsiveness
+
+### ❌ DON'T:
+- Wrap in multiple nested containers with competing layout rules
+- Force explicit dimensions (`w-[600px]`, `h-[400px]`)
+- Use `overflow: hidden` on parent containers
+- Override the component's intrinsic aspect ratio
+- Place inside fixed-height containers without scrolling
+
+### 🎯 Ideal Integration Pattern:
+```tsx
+const MyPage = () => {
+  const { data: tracks } = useTracks();
+  const { data: activeLabel } = useActiveLabelImage();
+  
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-gray-900 to-black p-8">
+      {tracks && tracks.length > 0 ? (
+        <VinylPlayer 
+          tracks={tracks} 
+          labelImageUrl={activeLabel?.image_url || "/images/label-blank-template.png"} 
+        />
+      ) : (
+        <p className="text-center text-white">No tracks available</p>
+      )}
+    </main>
+  );
+};
+```
+
 ---
 
 ## 🎓 Architecture Overview
