@@ -189,6 +189,34 @@ as $$
     where user_id = _user_id and role = _role
   )
 $$;
+
+-- CRITICAL: Automatic role assignment for new users
+-- This trigger ensures new signups get the 'user' role automatically
+-- Without this, users won't be able to access the application
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.user_roles (user_id, role)
+  values (new.id, 'user');
+  return new;
+end;
+$$;
+
+-- Trigger that fires when a new user signs up
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- Optional: Fix existing users who don't have roles yet
+-- Run this if you've already created users before adding the trigger
+-- insert into public.user_roles (user_id, role)
+-- select id, 'user'::app_role
+-- from auth.users
+-- where id not in (select user_id from public.user_roles);
 ```
 
 #### `label_images` table
