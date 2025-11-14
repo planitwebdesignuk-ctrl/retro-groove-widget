@@ -674,19 +674,49 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
   }, [isStartingPlayback, isPlaying, config.tonearmSpeed]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-vignette p-4 sm:p-8">
-      <div className="w-full max-w-4xl animate-fade-in">
-        {/* Main Turntable */}
-        <div 
-          className="relative mx-auto w-full overflow-hidden rounded-2xl bg-card shadow-2xl"
-          style={{ aspectRatio: aspectRatio.toString() }}
-        >
+    <div 
+      className="vinyl-player-root"
+      style={{
+        all: 'unset',
+        display: 'block',
+        position: 'relative',
+        width: '100%',
+        maxWidth: '1200px',
+        margin: '0 auto',
+        aspectRatio: aspectRatio.toString(),
+        containerType: 'inline-size',
+        // CSS custom properties for positioning
+        '--platter-left': config.platter.leftPct,
+        '--platter-top': config.platter.topPct,
+        '--platter-size': config.platter.sizePct,
+        '--tonearm-right': config.tonearm.rightPct,
+        '--tonearm-top': config.tonearm.topPct,
+        '--tonearm-width': config.tonearm.widthPct,
+        '--tonearm-pivot-x': config.tonearm.pivotXPct,
+        '--tonearm-pivot-y': config.tonearm.pivotYPct,
+      } as React.CSSProperties}
+    >
+      <div className="vinyl-player-container animate-fade-in" style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        borderRadius: '1rem',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+      }}>
+        {/* Main Turntable Base */}
+        <div className="vinyl-player-base" style={{ position: 'relative', width: '100%', height: '100%' }}>
           {/* Background - Turntable base with full scene */}
           <img 
             ref={baseImageRef}
             src="/images/turntable-base.png"
             alt="Turntable"
-            className="w-full h-full object-cover"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+            }}
             onLoad={(e) => {
               const img = e.currentTarget;
               if (img.naturalWidth > 0) {
@@ -700,22 +730,27 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
             <img
               src={referenceImage}
               alt="Reference"
-              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-              style={{ 
+              style={{
+                position: 'absolute',
+                inset: '0',
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                pointerEvents: 'none',
                 zIndex: 5, 
                 opacity: referenceOpacity / 100,
-                mixBlendMode: 'normal'
+                mixBlendMode: 'normal',
               }}
             />
           )}
 
           {/* Vinyl Record - positioned over the platter */}
           <div 
-            className="absolute"
             style={{
-              left: `${config.platter.leftPct}%`,
-              top: `${config.platter.topPct}%`,
-              width: `${config.platter.sizePct}%`,
+              position: 'absolute',
+              left: 'calc(var(--platter-left) * 1%)',
+              top: 'calc(var(--platter-top) * 1%)',
+              width: 'calc(var(--platter-size) * 1%)',
               aspectRatio: "1/1",
               zIndex: 2,
             }}
@@ -734,16 +769,24 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
               <img
                 src="/images/vinyl-record.png"
                 alt="Vinyl Record"
-                className="w-full h-full object-contain"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                }}
               />
               {/* Center label overlay */}
               <img
                 src={labelImageUrl}
                 alt="Record Label"
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-contain"
                 style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
                   width: '52%',
                   height: '52%',
+                  objectFit: 'contain',
                   zIndex: 2,
                 }}
               />
@@ -753,25 +796,30 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
           {/* Glow effect when playing */}
           {isPlaying && (
             <div 
-              className="absolute animate-glow-pulse rounded-full bg-accent/10 blur-2xl pointer-events-none"
               style={{
-                left: `${config.platter.leftPct}%`,
-                top: `${config.platter.topPct}%`,
-                width: `${config.platter.sizePct}%`,
-                height: `${config.platter.sizePct}%`,
+                position: 'absolute',
+                left: 'calc(var(--platter-left) * 1%)',
+                top: 'calc(var(--platter-top) * 1%)',
+                width: 'calc(var(--platter-size) * 1%)',
+                height: 'calc(var(--platter-size) * 1%)',
+                borderRadius: '50%',
+                backgroundColor: 'hsl(var(--accent) / 0.1)',
+                filter: 'blur(2rem)',
+                pointerEvents: 'none',
                 zIndex: 1,
+                animation: 'glow-pulse 2s ease-in-out infinite',
               }}
             />
           )}
 
           {/* Tonearm - animated using the standalone tonearm image */}
           <div
-            className="absolute"
             style={{
-              right: `${config.tonearm.rightPct}%`,
-              top: `${config.tonearm.topPct}%`,
-              width: `${config.tonearm.widthPct}%`,
-              transformOrigin: `${config.tonearm.pivotXPct}% ${config.tonearm.pivotYPct}%`,
+              position: 'absolute',
+              right: 'calc(var(--tonearm-right) * 1%)',
+              top: 'calc(var(--tonearm-top) * 1%)',
+              width: 'calc(var(--tonearm-width) * 1%)',
+              transformOrigin: `calc(var(--tonearm-pivot-x) * 1%) calc(var(--tonearm-pivot-y) * 1%)`,
               transform: `rotate(${tonearmRotation}deg)`,
               transition: isStartingPlayback 
                 ? `transform ${config.tonearmSpeed.playMs}ms ${config.tonearmSpeed.playEasing}` 
@@ -782,54 +830,71 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
             <img
               src="/images/tonearm-animated.png"
               alt="Tonearm"
-              className="w-full h-auto object-contain drop-shadow-2xl"
               style={{
+                width: '100%',
+                height: 'auto',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 25px 25px rgba(0, 0, 0, 0.5))',
                 transform: `scaleY(${config.tonearm.lengthScale})`,
-                transformOrigin: `${config.tonearm.pivotXPct}% ${config.tonearm.pivotYPct}%`,
+                transformOrigin: `calc(var(--tonearm-pivot-x) * 1%) calc(var(--tonearm-pivot-y) * 1%)`,
               }}
             />
           </div>
 
           {/* Calibration Mode Overlay */}
           {calibrationMode && (
-            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 10 }}>
               {/* Platter Ring */}
               <div
-                className="absolute border-2 border-yellow-400 rounded-full"
                 style={{
-                  left: `${config.platter.leftPct}%`,
-                  top: `${config.platter.topPct}%`,
-                  width: `${config.platter.sizePct}%`,
-                  height: `${config.platter.sizePct}%`,
+                  position: 'absolute',
+                  left: 'calc(var(--platter-left) * 1%)',
+                  top: 'calc(var(--platter-top) * 1%)',
+                  width: 'calc(var(--platter-size) * 1%)',
+                  height: 'calc(var(--platter-size) * 1%)',
+                  border: '2px solid rgb(250, 204, 21)',
+                  borderRadius: '50%',
                 }}
               />
               
               {/* Tonearm Pivot Crosshair */}
               <div
-                className="absolute"
                 style={{
-                  right: `${config.tonearm.rightPct}%`,
-                  top: `${config.tonearm.topPct}%`,
-                  width: `${config.tonearm.widthPct}%`,
-                  aspectRatio: "auto",
+                  position: 'absolute',
+                  right: 'calc(var(--tonearm-right) * 1%)',
+                  top: 'calc(var(--tonearm-top) * 1%)',
+                  width: 'calc(var(--tonearm-width) * 1%)',
+                  aspectRatio: 'auto',
                 }}
               >
                 <div
-                  className="absolute"
                   style={{
-                    left: `${config.tonearm.pivotXPct}%`,
-                    top: `${config.tonearm.pivotYPct}%`,
-                    transform: "translate(-50%, -50%)",
+                    position: 'absolute',
+                    left: 'calc(var(--tonearm-pivot-x) * 1%)',
+                    top: 'calc(var(--tonearm-pivot-y) * 1%)',
+                    transform: 'translate(-50%, -50%)',
                   }}
                 >
-                  <div className="w-8 h-0.5 bg-red-500 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
-                  <div className="w-0.5 h-8 bg-red-500 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
-                  <div className="w-2 h-2 rounded-full border-2 border-red-500 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+                  <div style={{ width: '2rem', height: '0.125rem', backgroundColor: 'rgb(239, 68, 68)', position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+                  <div style={{ width: '0.125rem', height: '2rem', backgroundColor: 'rgb(239, 68, 68)', position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+                  <div style={{ width: '0.5rem', height: '0.5rem', borderRadius: '50%', border: '2px solid rgb(239, 68, 68)', position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
                 </div>
               </div>
 
               {/* Control Panel */}
-              <div className="absolute top-4 left-4 bg-black/90 text-white p-4 rounded-lg text-xs font-mono pointer-events-auto max-w-md">
+              <div style={{
+                position: 'absolute',
+                top: '1rem',
+                left: '1rem',
+                backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                color: 'white',
+                padding: '1rem',
+                borderRadius: '0.5rem',
+                fontSize: '0.75rem',
+                fontFamily: 'monospace',
+                pointerEvents: 'auto',
+                maxWidth: '28rem',
+              }}>
                 <div className="font-bold mb-3 text-sm">🎯 Calibration Mode</div>
                 
                 <div className="mb-3 space-y-1">
@@ -933,7 +998,7 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
               </div>
             </div>
           )}
-        </div>
+        </div> {/* End vinyl-player-base */}
 
         {/* Track Info & Controls */}
         <div className="mt-8 rounded-xl bg-card p-6 shadow-lg">
@@ -1105,8 +1170,8 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
           <source src={currentTrack?.audioUrl || ''} type="audio/mpeg" />
           Your browser does not support the audio element.
         </audio>
-      </div>
-    </div>
+      </div> {/* End vinyl-player-container */}
+    </div> {/* End vinyl-player-root */}
   );
 };
 

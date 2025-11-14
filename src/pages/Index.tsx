@@ -23,7 +23,7 @@ const Index = () => {
   }
 
   return (
-    <div className="relative min-h-screen">
+    <div className="min-h-screen bg-vignette p-4 sm:p-8">
       {user && role === 'admin' && (
         <div className="absolute top-4 right-4 z-10">
           <Button onClick={() => navigate('/admin')} variant="outline">
