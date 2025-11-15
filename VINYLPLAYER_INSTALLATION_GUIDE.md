@@ -84,6 +84,7 @@ A complete full-stack music management system with:
 - **Label Images Management**: Upload, activate, and manage multiple vinyl label images
 - **Role-Based Access Control**: Separate user roles table with admin privileges
 - **Security**: Row-Level Security (RLS) policies on all tables
+- **Realtime Updates**: Label changes automatically sync across all browser tabs
 - **Dynamic Features**: 
   - Single file upload with metadata extraction
   - Bulk folder upload (multiple MP3s at once)
@@ -92,6 +93,7 @@ A complete full-stack music management system with:
   - Real-time UI updates with React Query
   - Track reordering
   - Dynamic label image switching
+  - Live label synchronization across sessions
 
 ---
 
@@ -645,6 +647,10 @@ values (
   true,
   null
 );
+
+-- Enable realtime updates for label_images table
+-- This allows the player to automatically update when admin changes the active label
+ALTER PUBLICATION supabase_realtime ADD TABLE public.label_images;
 ```
 
 **✅ VERIFICATION:** After running this migration, you should have:
@@ -654,6 +660,7 @@ values (
 - ✅ 2 triggers: `single_active_label_trigger`, `on_auth_user_created`
 - ✅ 1 default admin user: `admin@admin.com` (password: `admin`)
 - ✅ 1 default label image: "Default Blank Label" (active)
+- ✅ Realtime enabled for `label_images` table
 
 ### Step 2: Login and Change Default Password
 
@@ -1537,12 +1544,21 @@ export function useSetActiveLabelImage() {
 
   return useMutation({
     mutationFn: async (labelId: string) => {
-      const { error } = await supabase
+      // First deactivate all labels
+      const { error: deactivateError } = await supabase
+        .from('label_images')
+        .update({ is_active: false })
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Match all rows
+      
+      if (deactivateError) throw deactivateError;
+
+      // Then activate the selected label
+      const { error: activateError } = await supabase
         .from('label_images')
         .update({ is_active: true })
         .eq('id', labelId);
       
-      if (error) throw error;
+      if (activateError) throw activateError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['label-images'] });
@@ -1634,6 +1650,8 @@ export async function extractMp3Metadata(file: File): Promise<Mp3Metadata> {
 
 ```tsx
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import VinylPlayer from "@/components/VinylPlayer";
 import { useTracks } from "@/hooks/useTracks";
 import { useActiveLabelImage } from "@/hooks/useLabelImages";
@@ -1641,13 +1659,38 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data: tracks, isLoading } = useTracks();
   const { data: activeLabel } = useActiveLabelImage();
   const { data: role } = useUserRole(user?.id);
+
+  // Subscribe to label changes for realtime updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('label-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'label_images'
+        },
+        () => {
+          // Refetch active label when any label changes
+          queryClient.invalidateQueries({ queryKey: ['active-label'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   if (isLoading) {
     return (
@@ -2290,6 +2333,14 @@ These are auto-configured by Lovable Cloud:
 - Check image paths match component code
 - Clear browser cache
 
+**Label changes don't update automatically**
+- Check that realtime is enabled in the database migration
+- Verify `ALTER PUBLICATION supabase_realtime ADD TABLE public.label_images;` was executed
+- Ensure Index.tsx has the realtime subscription (useEffect with channel)
+- Check browser console for websocket connection errors
+- Open browser DevTools → Network → WS tab to verify websocket connection
+- Test by changing label in Admin dashboard while Index page is open in another tab
+
 **Dark spots or artifacts on labels**
 - **Symptom**: Small dark spot or black pixels visible in the center of the record label
 - **Cause**: The vinyl player uses a 3-layer image stacking system:
@@ -2486,15 +2537,26 @@ Admin Selects File → Extract Metadata → Upload to Storage → Get Public URL
 
 2. **Activation Process:**
    - Admin clicks "Set Active" on desired label
-   - Database trigger `ensure_single_active_label()` fires
-   - Previous active label automatically deactivated (is_active = false)
-   - New label set to active (is_active = true)
+   - Hook first deactivates ALL labels (is_active = false)
+   - Then activates selected label (is_active = true)
+   - Database trigger `ensure_single_active_label()` ensures atomicity
+   - Realtime event broadcasts to all connected clients
    - Query cache invalidated for immediate UI update
+   - **All open browser tabs automatically sync the label change**
 
 3. **Display Process:**
    - Index.tsx calls `useActiveLabelImage()` hook
    - Hook queries for label with `is_active = true`
    - Returns active label URL or null
+   - Realtime subscription listens for label_images changes
+   - On change event, query cache invalidated and UI updates automatically
+
+4. **Realtime Synchronization:**
+   - Label changes broadcast via Supabase Realtime
+   - Index page subscribes to `label_images` table changes
+   - When admin changes active label, all viewers see update instantly
+   - No manual refresh required
+   - Works across multiple browser tabs and devices
    - VinylPlayer uses active label or falls back to default (`/images/label-blank-template.png`)
    - Player displays label on spinning vinyl
 
