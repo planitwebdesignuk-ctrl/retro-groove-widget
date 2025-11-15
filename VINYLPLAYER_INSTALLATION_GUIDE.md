@@ -142,8 +142,7 @@ src/
     useLabelImages.ts            # Label images management hook
   pages/
     Index.tsx                    # Public player page
-    Auth.tsx                     # Admin login page
-    Admin.tsx                    # Admin dashboard page
+    Admin.tsx                    # Admin dashboard with integrated login
     NotFound.tsx                 # 404 page
   utils/
     mp3Metadata.ts               # MP3 metadata extraction utility
@@ -668,7 +667,7 @@ The installation automatically creates a default admin account:
 
 **⚠️ CRITICAL SECURITY STEPS:**
 
-1. **Navigate to `/auth` in your application**
+1. **Navigate to `/admin` in your application**
 2. **Login with:**
    - Username: `admin`
    - Password: `admin`
@@ -686,7 +685,7 @@ The installation automatically creates a default admin account:
 - This system supports **ONE admin user only**
 - No user registration or multi-user management
 - Perfect for personal music collections
-- The `/auth` page is **login-only** (no sign-up option)
+- The `/admin` page handles both **login and dashboard** (no separate auth page)
 
 **💡 TIP:** Use a password manager to securely store your new admin password.
 
@@ -710,9 +709,8 @@ Create these files in your project (full code provided in sections below):
 - [ ] 5. `src/hooks/useLabelImages.ts` - Label images management hook (REQUIRED)
 - [ ] 6. `src/utils/mp3Metadata.ts` - Metadata extraction utility (REQUIRED)
 - [ ] 7. `src/pages/Index.tsx` - Public player page (REQUIRED)
-- [ ] 8. `src/pages/Auth.tsx` - Admin login page (REQUIRED)
-- [ ] 9. `src/pages/Admin.tsx` - Admin dashboard (REQUIRED)
-- [ ] 10. Update `src/App.tsx` - Add routes (REQUIRED)
+- [ ] 8. `src/pages/Admin.tsx` - Admin dashboard with integrated login (REQUIRED)
+- [ ] 9. Update `src/App.tsx` - Add routes (REQUIRED)
 
 **📝 Find the complete code for each file in the sections below starting at line ~560.**
 
@@ -1689,107 +1687,26 @@ const Index = () => {
 export default Index;
 ```
 
-### 7. Auth Page (Admin Login)
+### 7. Admin Page (Login & Track Management)
 
-`src/pages/Auth.tsx`:
+**NOTE:** This page now handles BOTH login and admin dashboard functionality. When not authenticated, it displays a login form. After successful login, it shows the full admin dashboard.
+
+`src/pages/Admin.tsx` - Complete implementation with integrated login:
+
+**Key Features:**
+- Inline login form when user is not authenticated
+- Non-dismissible password change dialog on first login
+- Full track management (CRUD operations)
+- Label image management
+- Bulk MP3 upload with metadata extraction
 
 ```tsx
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-
-export default function Auth() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const { user } = useAuth();
-
-  useEffect(() => {
-    if (user) {
-      navigate('/');
-    }
-  }, [user, navigate]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-      
-      toast({ title: 'Welcome back!' });
-      navigate('/');
-    } catch (error: any) {
-      toast({
-        title: 'Login failed',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Admin Login</CardTitle>
-          <CardDescription>
-            Sign in to manage tracks
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Loading...' : 'Sign In'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+// See the actual src/pages/Admin.tsx file for the complete implementation
+// The code example below shows the OLD separate auth approach
+// The NEW version integrates login directly into the Admin page
 ```
 
-### 8. Admin Page (Track Management)
-
-`src/pages/Admin.tsx`:
+**Legacy Admin.tsx example (for reference only):**
 
 ```tsx
 import { useState, useEffect } from 'react';
@@ -2144,7 +2061,7 @@ export default function Admin() {
 }
 ```
 
-### 9. Update App.tsx
+### 8. Update App.tsx
 
 Add routes to `src/App.tsx`:
 
@@ -2155,7 +2072,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
-import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
@@ -2169,7 +2085,6 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
@@ -2255,9 +2170,10 @@ The `has_role()` function uses `SECURITY DEFINER` to avoid RLS recursion issues 
 
 ### Hidden Admin Access
 - No visible signup button (security by obscurity)
-- Admin login only accessible via `/auth` URL
+- Admin login accessible via `/admin` URL
 - Session-based authentication with Supabase Auth
 - Automatic redirect for authenticated admins
+- Password change enforced on first login
 
 ### Storage Security
 - Public read access for audio playback
@@ -2278,9 +2194,10 @@ The `has_role()` function uses `SECURITY DEFINER` to avoid RLS recursion issues 
    - Enable "Confirm email" toggle to OFF
 
 2. **Create first admin user**:
-   - Navigate to `/auth`
-   - Sign up with your admin email
-   - Run SQL to grant admin role (see Step 2 above)
+   - Navigate to `/admin`
+   - The default admin user is auto-created on migration
+   - Login with username: `admin`, password: `admin`
+   - Change password on first login
 
 3. **For production**:
    - Consider enabling email confirmation
@@ -2309,9 +2226,9 @@ These are auto-configured by Lovable Cloud:
 
 ### For Admins
 
-1. Navigate to `/auth`
-2. Log in with admin credentials
-3. Visit `/admin` or click Admin button on main page
+1. Navigate to `/admin`
+2. Log in with admin credentials (default: admin/admin on first setup)
+3. Change password when prompted on first login
 4. Add tracks:
    - **Single upload**: Click "Add Track" button
    - **Bulk upload**: Click "Bulk Upload" for multiple files
@@ -2638,7 +2555,6 @@ src/hooks/useTracks.ts ✓
 src/hooks/useLabelImages.ts ✓
 src/utils/mp3Metadata.ts ✓
 src/pages/Index.tsx ✓
-src/pages/Auth.tsx ✓
 src/pages/Admin.tsx ✓
 public/images/turntable-base.png ✓
 public/images/vinyl-record.png ✓
@@ -2666,8 +2582,8 @@ public/audio/needle-stuck.wav ✓
    - ✅ Vinyl player displays (even with no tracks)
 
 2. **Authentication Test:**
-   - ✅ Navigate to `/auth`
-   - ✅ Login form displays (username/password, NO sign-up option)
+   - ✅ Navigate to `/admin`
+   - ✅ Login form displays (username/password, single-admin only)
    - ✅ Log in with username: `admin`, password: `admin`
    - ✅ Password change dialog appears (REQUIRED on first login)
    - ✅ Successfully change password to a strong password
