@@ -2724,6 +2724,79 @@ Before deploying to production:
 
 ---
 
+## 🔧 Admin User Provisioning & Auth Normalization
+
+### How the Admin User Is Created
+
+The default admin user (`admin@admin.com` / `admin`) is automatically provisioned by the initial database migration script. This migration:
+
+1. **Creates the admin user** in `auth.users` with:
+   - Email: `admin@admin.com`
+   - Password: `admin` (bcrypt-hashed)
+   - `email_confirmed_at` set to `now()` (email pre-confirmed)
+   - `raw_user_meta_data` with `needs_password_change: true` flag
+
+2. **Assigns the admin role** in `public.user_roles` table
+
+3. **Normalizes auth fields** to ensure compatibility with Supabase Auth API:
+   - All token fields (`confirmation_token`, `recovery_token`, etc.) are coalesced to empty strings (not NULL)
+   - `aud` and `role` fields are set to `'authenticated'`
+   - `email_confirmed_at` is set to avoid email verification requirements
+
+### Why Token Normalization Is Required
+
+The Supabase Auth API expects token-related columns to be strings, not NULL. If these fields contain NULL values, the login endpoint will fail with:
+
+```
+error finding user: sql: Scan error on column index X, name "..._token": 
+converting NULL to string is unsupported
+```
+
+The migration script proactively normalizes these fields to prevent login failures.
+
+### Login Flow
+
+1. Navigate to `/admin` (NOT `/auth` - there is no separate auth page)
+2. Enter credentials: `admin` / `admin`
+3. On first login, you'll be immediately prompted to change the password
+4. After password change, the full admin dashboard loads
+
+### If Login Still Fails
+
+If you encounter "Access denied" or "Database error querying schema" after running the migration:
+
+1. **Verify the admin user exists:**
+   ```sql
+   SELECT email, email_confirmed_at, raw_user_meta_data 
+   FROM auth.users 
+   WHERE email = 'admin@admin.com';
+   ```
+
+2. **Verify the admin role is assigned:**
+   ```sql
+   SELECT u.email, ur.role 
+   FROM auth.users u 
+   JOIN public.user_roles ur ON u.id = ur.user_id 
+   WHERE u.email = 'admin@admin.com';
+   ```
+
+3. **Re-run the normalization update:**
+   ```sql
+   UPDATE auth.users
+   SET
+     confirmation_token = COALESCE(confirmation_token, ''),
+     recovery_token = COALESCE(recovery_token, ''),
+     email_change_token_new = COALESCE(email_change_token_new, ''),
+     email_change_token_current = COALESCE(email_change_token_current, ''),
+     phone_change_token = COALESCE(phone_change_token, ''),
+     reauthentication_token = COALESCE(reauthentication_token, ''),
+     email_confirmed_at = COALESCE(email_confirmed_at, NOW()),
+     updated_at = NOW()
+   WHERE email = 'admin@admin.com';
+   ```
+
+---
+
 ## 📚 Additional Resources
 
 ### Supabase Documentation
