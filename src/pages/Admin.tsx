@@ -5,14 +5,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useTracks, useDeleteTrack, useUpdateTrack } from '@/hooks/useTracks';
 import { useLabelImages, useUploadLabelImage, useSetActiveLabelImage, useDeleteLabelImage } from '@/hooks/useLabelImages';
-import { Pencil, Trash2, LogOut, Plus, FolderUp, Upload, Image as ImageIcon, Check, Key } from 'lucide-react';
+import { Pencil, Trash2, LogOut, Plus, FolderUp, Upload, Image as ImageIcon, Check, Key, Lock } from 'lucide-react';
 import { extractMp3Metadata } from '@/utils/mp3Metadata';
 import {
   AlertDialog,
@@ -29,6 +29,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 
 export default function Admin() {
@@ -44,6 +45,11 @@ export default function Admin() {
   const uploadLabelImage = useUploadLabelImage();
   const setActiveLabelImage = useSetActiveLabelImage();
   const deleteLabelImage = useDeleteLabelImage();
+
+  // Login state
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -66,16 +72,11 @@ export default function Admin() {
   const [uploadingLabel, setUploadingLabel] = useState<File | null>(null);
   const [uploadingLabelImage, setUploadingLabelImage] = useState(false);
   
-  const [changePasswordDialogOpen, setChangePasswordDialogOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/auth');
-    }
-  }, [user, authLoading, navigate]);
+  const needsPasswordChange = user?.user_metadata?.needs_password_change === true;
 
   useEffect(() => {
     if (!authLoading && user && !roleLoading && role !== 'admin') {
@@ -88,6 +89,21 @@ export default function Admin() {
     }
   }, [user, role, roleLoading, authLoading, navigate]);
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoggingIn(true);
+    try {
+      const email = username === 'admin' ? 'admin@admin.com' : `${username}@admin.com`;
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      toast({ title: data.user?.user_metadata?.needs_password_change ? 'Password Change Required' : 'Welcome back!' });
+    } catch (error: any) {
+      toast({ title: 'Login failed', description: error.message, variant: 'destructive' });
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/');
@@ -95,48 +111,23 @@ export default function Admin() {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (newPassword !== confirmPassword) {
-      toast({
-        title: 'Passwords do not match',
-        description: 'Please ensure both passwords are identical.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Passwords do not match', variant: 'destructive' });
       return;
     }
-
     if (newPassword.length < 8) {
-      toast({
-        title: 'Password too short',
-        description: 'Password must be at least 8 characters long.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Password too short', variant: 'destructive' });
       return;
     }
-
     setChangingPassword(true);
-
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
+      const { error } = await supabase.auth.updateUser({ password: newPassword, data: { needs_password_change: false } });
       if (error) throw error;
-
-      toast({
-        title: 'Password changed successfully',
-        description: 'Your password has been updated.',
-      });
-      
-      setChangePasswordDialogOpen(false);
+      toast({ title: 'Password changed successfully' });
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
-      toast({
-        title: 'Password change failed',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Password change failed', description: error.message, variant: 'destructive' });
     } finally {
       setChangingPassword(false);
     }
@@ -441,24 +432,66 @@ export default function Admin() {
     }
   };
 
-  if (authLoading || (user && roleLoading)) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (authLoading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Lock className="h-6 w-6" />
+              <CardTitle>Admin Login</CardTitle>
+            </div>
+            <CardDescription>Single-admin system</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="admin" required autoComplete="username" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required autoComplete="current-password" />
+              </div>
+              <Button type="submit" className="w-full" disabled={loggingIn}>{loggingIn ? 'Signing in...' : 'Sign In'}</Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
-  if (role !== 'admin') {
-    return null;
-  }
+  if (roleLoading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (role !== 'admin') return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20 p-8">
+      {/* Password change dialog - non-dismissible when required */}
+      <Dialog open={needsPasswordChange} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Change Password Required</DialogTitle>
+            <DialogDescription>For security, you must change your password before accessing the admin dashboard.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
+            </div>
+            <Button type="submit" className="w-full" disabled={changingPassword}>{changingPassword ? 'Changing...' : 'Change Password'}</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold">Track Management</h1>
           <div className="flex gap-2">
-            <Button onClick={() => setChangePasswordDialogOpen(true)} variant="outline">
-              <Key className="mr-2 h-4 w-4" />
-              Change Password
-            </Button>
             <Button onClick={handleLogout} variant="outline">
               <LogOut className="mr-2 h-4 w-4" />
               Logout
@@ -539,7 +572,8 @@ export default function Admin() {
                             setEditDialogOpen(true);
                           }}
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit
                         </Button>
                         <Button
                           variant="ghost"
@@ -549,7 +583,8 @@ export default function Admin() {
                             setDeleteDialogOpen(true);
                           }}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -561,69 +596,55 @@ export default function Admin() {
         </Card>
 
         <Card className="mt-8">
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader>
             <CardTitle>Label Images</CardTitle>
-            <Button onClick={() => setLabelUploadDialogOpen(true)}>
-              <ImageIcon className="mr-2 h-4 w-4" />
-              Upload Label
-            </Button>
           </CardHeader>
           <CardContent>
             {labelsLoading ? (
-              <p>Loading labels...</p>
-            ) : labelImages?.length === 0 ? (
-              <p className="text-muted-foreground">No label images yet. Upload your first label!</p>
+              <p>Loading label images...</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 {labelImages?.map((label) => (
-                  <div 
-                    key={label.id} 
-                    className={`relative border rounded-lg p-4 ${label.is_active ? 'border-primary ring-2 ring-primary' : 'border-border'}`}
-                  >
-                    {label.is_active && (
-                      <div className="absolute top-2 right-2 bg-primary text-primary-foreground px-2 py-1 rounded-md text-xs font-semibold flex items-center gap-1">
-                        <Check className="h-3 w-3" />
-                        Active
-                      </div>
-                    )}
-                    <div className="aspect-square mb-3 rounded overflow-hidden bg-muted">
-                      <img 
-                        src={label.image_url} 
+                  <div key={label.id} className="border rounded-lg p-4 relative">
+                    <div className="aspect-square rounded overflow-hidden bg-muted">
+                      <img
+                        src={label.image_url}
                         alt={label.name}
                         className="w-full h-full object-contain"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <p className="font-medium truncate" title={label.name}>{label.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {label.file_size ? `${(label.file_size / 1024).toFixed(1)} KB` : 'Unknown size'}
-                      </p>
-                      <div className="flex gap-2">
-                        {!label.is_active && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleSetActiveLabel(label.id)}
-                            className="flex-1"
-                          >
-                            Set Active
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => {
-                            setSelectedLabel(label);
-                            setLabelDeleteDialogOpen(true);
-                          }}
-                          className={label.is_active ? 'flex-1' : ''}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                    <p className="text-sm font-medium mt-2">{label.name}</p>
+                    <div className="flex gap-2 mt-2 absolute top-2 right-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleSetActiveLabel(label.id)}
+                        disabled={label.is_active}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => {
+                          setSelectedLabel(label);
+                          setLabelDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
+                    {label.is_active && (
+                      <div className="absolute top-2 left-2 bg-secondary text-secondary-foreground px-2 py-1 rounded-md text-xs font-medium">
+                        Active
+                      </div>
+                    )}
                   </div>
                 ))}
+                <Button onClick={() => setLabelUploadDialogOpen(true)} variant="secondary">
+                  <ImageIcon className="mr-2 h-4 w-4" />
+                  Upload Label Image
+                </Button>
               </div>
             )}
           </CardContent>
@@ -633,9 +654,9 @@ export default function Admin() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Track</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete "{selectedTrack?.title}". This action cannot be undone.
+              Are you sure you want to delete "{selectedTrack?.title}"? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -649,31 +670,32 @@ export default function Admin() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Track</DialogTitle>
+            <DialogDescription>
+              Update the track information below.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="edit-title">Title</Label>
+              <label className="text-sm font-medium">Title</label>
               <Input
-                id="edit-title"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
               />
             </div>
             <div>
-              <Label htmlFor="edit-artist">Artist</Label>
+              <label className="text-sm font-medium">Artist</label>
               <Input
-                id="edit-artist"
                 value={editArtist}
                 onChange={(e) => setEditArtist(e.target.value)}
               />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleEdit}>Save</Button>
-            </div>
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEdit}>Save</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -790,62 +812,6 @@ export default function Admin() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Change Password Dialog */}
-      <Dialog open={changePasswordDialogOpen} onOpenChange={setChangePasswordDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Change Password</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleChangePassword} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="new-password">New Password</Label>
-              <Input
-                id="new-password"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password"
-                required
-                minLength={8}
-                autoComplete="new-password"
-              />
-              <p className="text-sm text-muted-foreground">
-                Minimum 8 characters
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm Password</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
-                required
-                minLength={8}
-                autoComplete="new-password"
-              />
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setChangePasswordDialogOpen(false);
-                  setNewPassword('');
-                  setConfirmPassword('');
-                }}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={changingPassword}>
-                {changingPassword ? 'Changing...' : 'Change Password'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

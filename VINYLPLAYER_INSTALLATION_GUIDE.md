@@ -31,7 +31,7 @@ Print this checklist and verify each item:
 **Dependencies:**
 - [ ] Installed `music-metadata-browser` package
 
-**Code Files (All 10 Required):**
+**Code Files (All 9 Required):**
 - [ ] `src/components/VinylPlayer.tsx`
 - [ ] `src/hooks/useAuth.ts`
 - [ ] `src/hooks/useUserRole.ts`
@@ -39,7 +39,6 @@ Print this checklist and verify each item:
 - [ ] `src/hooks/useLabelImages.ts`
 - [ ] `src/utils/mp3Metadata.ts`
 - [ ] `src/pages/Index.tsx`
-- [ ] `src/pages/Auth.tsx`
 - [ ] `src/pages/Admin.tsx`
 - [ ] `src/App.tsx` (routes updated)
 
@@ -54,8 +53,8 @@ Print this checklist and verify each item:
 
 **Final Verification:**
 - [ ] Homepage loads without errors
-- [ ] Can log in as admin at `/auth`
-- [ ] Can access admin dashboard at `/admin`
+- [ ] Can log in as admin at `/admin`
+- [ ] Can access admin dashboard after login
 - [ ] Can upload MP3 files
 - [ ] Player displays and plays tracks
 
