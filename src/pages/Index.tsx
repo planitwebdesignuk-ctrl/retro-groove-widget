@@ -1,4 +1,6 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import VinylPlayer from "@/components/VinylPlayer";
 import { useTracks } from "@/hooks/useTracks";
 import { useActiveLabelImage } from "@/hooks/useLabelImages";
@@ -6,13 +8,37 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data: tracks, isLoading } = useTracks();
   const { data: activeLabel } = useActiveLabelImage();
   const { data: role } = useUserRole(user?.id);
+
+  // Subscribe to label changes for realtime updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('label-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'label_images'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['active-label'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   if (isLoading) {
     return (

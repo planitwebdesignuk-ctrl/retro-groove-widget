@@ -96,12 +96,21 @@ export function useSetActiveLabelImage() {
 
   return useMutation({
     mutationFn: async (labelId: string) => {
-      const { error } = await (supabase as any)
+      // First deactivate all labels
+      const { error: deactivateError } = await (supabase as any)
+        .from('label_images')
+        .update({ is_active: false })
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Match all rows
+      
+      if (deactivateError) throw deactivateError;
+
+      // Then activate the selected label
+      const { error: activateError } = await (supabase as any)
         .from('label_images')
         .update({ is_active: true })
         .eq('id', labelId);
       
-      if (error) throw error;
+      if (activateError) throw activateError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['label-images'] });
