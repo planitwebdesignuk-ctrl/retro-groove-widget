@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useTracks, useDeleteTrack, useUpdateTrack } from '@/hooks/useTracks';
 import { useLabelImages, useUploadLabelImage, useSetActiveLabelImage, useDeleteLabelImage } from '@/hooks/useLabelImages';
-import { Pencil, Trash2, LogOut, Plus, FolderUp, Upload, Image as ImageIcon, Check } from 'lucide-react';
+import { Pencil, Trash2, LogOut, Plus, FolderUp, Upload, Image as ImageIcon, Check, Key } from 'lucide-react';
 import { extractMp3Metadata } from '@/utils/mp3Metadata';
 import {
   AlertDialog,
@@ -65,6 +65,11 @@ export default function Admin() {
   const [selectedLabel, setSelectedLabel] = useState<any>(null);
   const [uploadingLabel, setUploadingLabel] = useState<File | null>(null);
   const [uploadingLabelImage, setUploadingLabelImage] = useState(false);
+  
+  const [changePasswordDialogOpen, setChangePasswordDialogOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -86,6 +91,55 @@ export default function Admin() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/');
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: 'Passwords do not match',
+        description: 'Please ensure both passwords are identical.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast({
+        title: 'Password too short',
+        description: 'Password must be at least 8 characters long.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Password changed successfully',
+        description: 'Your password has been updated.',
+      });
+      
+      setChangePasswordDialogOpen(false);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      toast({
+        title: 'Password change failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -400,10 +454,16 @@ export default function Admin() {
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold">Track Management</h1>
-          <Button onClick={handleLogout} variant="outline">
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setChangePasswordDialogOpen(true)} variant="outline">
+              <Key className="mr-2 h-4 w-4" />
+              Change Password
+            </Button>
+            <Button onClick={handleLogout} variant="outline">
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </Button>
+          </div>
         </div>
 
         <Card>
@@ -730,6 +790,62 @@ export default function Admin() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Change Password Dialog */}
+      <Dialog open={changePasswordDialogOpen} onOpenChange={setChangePasswordDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+              />
+              <p className="text-sm text-muted-foreground">
+                Minimum 8 characters
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setChangePasswordDialogOpen(false);
+                  setNewPassword('');
+                  setConfirmPassword('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={changingPassword}>
+                {changingPassword ? 'Changing...' : 'Change Password'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

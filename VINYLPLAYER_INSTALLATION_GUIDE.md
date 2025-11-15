@@ -22,11 +22,11 @@ This installation has **ZERO tolerance for skipped steps**. Every section must b
 Print this checklist and verify each item:
 
 **Backend Setup:**
-- [ ] Ran COMPLETE database migration (includes 3 functions + 2 triggers)
+- [ ] Ran COMPLETE database migration (includes auto-admin creation + default label)
 - [ ] Verified 3 tables created: `tracks`, `user_roles`, `label_images`
 - [ ] Verified 2 storage buckets created: `tracks`, `label-images`
-- [ ] Created first admin user manually
-- [ ] Tested admin login works
+- [ ] Default admin user auto-created (admin@admin.com/admin)
+- [ ] Logged in and changed default password
 
 **Dependencies:**
 - [ ] Installed `music-metadata-browser` package
@@ -47,7 +47,7 @@ Print this checklist and verify each item:
 - [ ] `public/images/turntable-base.png`
 - [ ] `public/images/vinyl-record.png`
 - [ ] `public/images/Tonearm.png`
-- [ ] `public/images/label-blank-template.png`
+- [ ] `public/images/label-blank-template.png` ✨ (DEFAULT - auto-set as active)
 - [ ] `public/images/record-label.png`
 - [ ] `public/audio/needle-drop.wav`
 - [ ] `public/audio/needle-stuck.wav`
@@ -584,32 +584,112 @@ $$;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- ⚠️ AUTO-SETUP: Create default admin user
+-- This function creates the default admin user (admin@admin.com / admin)
+-- Password MUST be changed on first login for security
+create or replace function public.create_default_admin()
+returns void
+language plpgsql
+security definer
+as $$
+declare
+  admin_user_id uuid;
+begin
+  -- Check if admin already exists
+  if not exists (select 1 from auth.users where email = 'admin@admin.com') then
+    -- Create the admin user
+    insert into auth.users (
+      instance_id,
+      id,
+      aud,
+      role,
+      email,
+      encrypted_password,
+      email_confirmed_at,
+      raw_app_meta_data,
+      raw_user_meta_data,
+      created_at,
+      updated_at,
+      confirmation_token,
+      recovery_token
+    ) values (
+      '00000000-0000-0000-0000-000000000000',
+      gen_random_uuid(),
+      'authenticated',
+      'authenticated',
+      'admin@admin.com',
+      crypt('admin', gen_salt('bf')),
+      now(),
+      '{"provider":"email","providers":["email"]}',
+      '{"needs_password_change":true}',
+      now(),
+      now(),
+      '',
+      ''
+    ) returning id into admin_user_id;
+    
+    -- Assign admin role
+    insert into public.user_roles (user_id, role)
+    values (admin_user_id, 'admin');
+  end if;
+end;
+$$;
+
+-- Execute the function to create admin
+select public.create_default_admin();
+
+-- Insert default label image record
+insert into public.label_images (name, image_url, is_active, uploaded_by)
+values (
+  'Default Blank Label',
+  '/images/label-blank-template.png',
+  true,
+  null
+);
 ```
 
 **✅ VERIFICATION:** After running this migration, you should have:
 - ✅ 3 tables: `tracks`, `user_roles`, `label_images`
 - ✅ 2 storage buckets: `tracks`, `label-images`
-- ✅ 3 functions: `has_role()`, `ensure_single_active_label()`, `handle_new_user()`
+- ✅ 4 functions: `has_role()`, `ensure_single_active_label()`, `handle_new_user()`, `create_default_admin()`
 - ✅ 2 triggers: `single_active_label_trigger`, `on_auth_user_created`
+- ✅ 1 default admin user: `admin@admin.com` (password: `admin`)
+- ✅ 1 default label image: "Default Blank Label" (active)
 
-### Step 2: Create Your First Admin User
+### Step 2: Login and Change Default Password
 
-After running the migration, you need to create an admin user:
+**🔐 Default Admin Credentials:**
 
-1. Navigate to `/auth` in your app
-2. The first time, you'll need to manually sign up (or ask AI to temporarily enable signup)
-3. After creating your account, run this SQL to grant admin access:
+The installation automatically creates a default admin account:
 
-```sql
--- Replace 'your-user-id-here' with your actual user ID from auth.users
-insert into public.user_roles (user_id, role)
-values ('your-user-id-here', 'admin');
-```
+- **Username:** `admin`
+- **Email:** `admin@admin.com`
+- **Password:** `admin`
 
-**To find your user ID:**
-```sql
-select id, email from auth.users;
-```
+**⚠️ CRITICAL SECURITY STEPS:**
+
+1. **Navigate to `/auth` in your application**
+2. **Login with:**
+   - Username: `admin`
+   - Password: `admin`
+
+3. **You will be REQUIRED to change the password immediately**
+   - The system forces a password change on first login
+   - Choose a strong password (minimum 8 characters)
+   - **IMPORTANT:** There is NO password recovery - save your new password securely!
+
+4. **After changing password:**
+   - You'll be redirected to the admin dashboard at `/admin`
+   - You can now manage tracks and upload music
+
+**🔒 Single-Admin Architecture:**
+- This system supports **ONE admin user only**
+- No user registration or multi-user management
+- Perfect for personal music collections
+- The `/auth` page is **login-only** (no sign-up option)
+
+**💡 TIP:** Use a password manager to securely store your new admin password.
 
 ### Step 3: Add Required Dependencies
 
@@ -643,11 +723,11 @@ Create these files in your project (full code provided in sections below):
 
 Upload these files to the `public/` directory:
 
-**Images (5 REQUIRED + 1 optional):**
+**Images (5 REQUIRED):**
 - [ ] `public/images/turntable-base.png` - Main turntable body (REQUIRED)
 - [ ] `public/images/vinyl-record.png` - The spinning record - MUST have transparent center hole (REQUIRED)
 - [ ] `public/images/Tonearm.png` - Tonearm with transparent background (REQUIRED)
-- [ ] `public/images/label-blank-template.png` - Default label fallback (REQUIRED)
+- [ ] `public/images/label-blank-template.png` - ✨ DEFAULT label - auto-set as active (REQUIRED)
 - [ ] `public/images/record-label.png` - Another label option (REQUIRED)
 - [ ] `public/images/label-cobnet-strange.png` - Example label (optional)
 
@@ -2541,9 +2621,11 @@ SELECT name FROM storage.buckets WHERE name IN ('tracks', 'label-images');
 
 **Expected Results:**
 - ✅ 3 tables found
-- ✅ 3 functions found
+- ✅ 4 functions found (has_role, ensure_single_active_label, handle_new_user, create_default_admin)
 - ✅ 2 triggers found
 - ✅ 2 storage buckets found
+- ✅ 1 admin user created (admin@admin.com)
+- ✅ 1 default label image (Default Blank Label - active)
 
 ### 2. File Structure Verification
 
@@ -2586,13 +2668,17 @@ public/audio/needle-stuck.wav ✓
 
 2. **Authentication Test:**
    - ✅ Navigate to `/auth`
-   - ✅ Login form displays
-   - ✅ Can log in with admin credentials
-   - ✅ Redirects to admin dashboard after login
+   - ✅ Login form displays (username/password, NO sign-up option)
+   - ✅ Log in with username: `admin`, password: `admin`
+   - ✅ Password change dialog appears (REQUIRED on first login)
+   - ✅ Successfully change password to a strong password
+   - ✅ Save new password in password manager
+   - ✅ Redirects to admin dashboard after password change
 
 3. **Admin Dashboard Test:**
    - ✅ Navigate to `/admin`
    - ✅ Dashboard displays track list
+   - ✅ "Change Password" button visible in header
    - ✅ "Upload Track" button visible
    - ✅ Label images section visible
 
@@ -2614,23 +2700,25 @@ public/audio/needle-stuck.wav ✓
 
 6. **Label Management Test:**
    - ✅ Go to admin dashboard
-   - ✅ Upload label image
-   - ✅ Activate label
+   - ✅ Default blank label already exists and is active
+   - ✅ Upload custom label image (optional)
+   - ✅ Activate custom label (optional)
    - ✅ Go to homepage
-   - ✅ Label displays on vinyl
+   - ✅ Label displays on vinyl (default or custom)
 
 ### 5. Common Issues Checklist
 
 If something doesn't work, check:
 
-- [ ] **"Can't log in"** → Did you create admin user in Step 2?
+- [ ] **"Can't log in"** → Use username `admin` and password `admin` (change on first login)
+- [ ] **"Password change required"** → This is normal! Change it to continue
+- [ ] **"No sign-up option"** → Correct! This is a single-admin system (login only)
 - [ ] **"No tracks showing"** → Did you upload at least one track?
 - [ ] **"Upload fails"** → Is `music-metadata-browser` installed?
 - [ ] **"Blank vinyl"** → Are image assets uploaded to `public/images/`?
 - [ ] **"No sound"** → Are audio assets uploaded to `public/audio/`?
 - [ ] **"Permission denied"** → Check RLS policies and admin role
 - [ ] **"Tonearm wrong size"** → `DEFAULT_CONFIG` not copied correctly
-- [ ] **"New users can't sign up"** → Missing `handle_new_user()` trigger
 
 ### 6. Emergency Troubleshooting
 
@@ -2640,18 +2728,84 @@ If something doesn't work, check:
 2. **Verify all 10 code files exist** - Missing files cause import errors
 3. **Check database migration completed** - Run verification SQL above
 4. **Verify asset files uploaded** - Check browser Network tab for 404s
-5. **Check you created admin user** - Run: `select * from user_roles;`
+5. **Verify default admin created** - Migration should auto-create admin@admin.com
 6. **Clear browser cache** - Old cached code can cause issues
 
 **Still broken? Check these critical items:**
 
 | Issue | Fix |
 |-------|-----|
-| Auth errors | Missing `handle_new_user()` trigger in migration |
+| Auth errors | Check admin user created: `select * from auth.users where email = 'admin@admin.com';` |
 | Upload fails | `music-metadata-browser` not installed |
-| Permission denied | Admin role not assigned to user |
+| Permission denied | Admin user should auto-exist, check: `select * from user_roles;` |
 | Visual glitches | Asset files missing or wrong paths |
 | Playback fails | Audio files missing from `public/audio/` |
+
+---
+
+## 🔒 Security Notes
+
+### Single-Admin Architecture
+
+This VinylPlayer system is designed with a **single-admin model** for personal or single-operator use:
+
+**Key Security Features:**
+- ✅ Only ONE admin account exists in the system
+- ✅ No user registration or sign-up functionality
+- ✅ Login-only authentication (no public sign-up page)
+- ✅ Mandatory password change on first login
+- ✅ Row-Level Security (RLS) policies protect all data
+- ✅ Admin-only access to track management and uploads
+
+**Password Security:**
+1. **Default Credentials MUST Be Changed:**
+   - Default: `admin` / `admin` 
+   - System FORCES password change on first login
+   - Choose a strong password (12+ characters recommended)
+   - Include uppercase, lowercase, numbers, and symbols
+
+2. **No Password Recovery:**
+   - ⚠️ There is NO password reset mechanism
+   - Store your password securely (use a password manager)
+   - Losing your password means losing admin access
+   - Backup solution: Manual database password reset (advanced users only)
+
+3. **Best Practices:**
+   - Use a unique password (not reused from other sites)
+   - Consider using a password manager (1Password, Bitwarden, LastPass)
+   - Change password regularly (every 3-6 months)
+   - Never share admin credentials
+
+**Production Deployment:**
+
+Before deploying to production:
+
+1. ✅ **Change default password** - Never deploy with `admin/admin`
+2. ✅ **Use HTTPS** - Always use SSL/TLS for encrypted connections
+3. ✅ **Regular backups** - Backup database and track files regularly
+4. ✅ **Monitor access** - Check database logs for suspicious activity
+5. ✅ **Update dependencies** - Keep all packages up to date
+6. ✅ **Review RLS policies** - Ensure data access is properly restricted
+
+**Data Protection:**
+
+- All tracks and metadata are stored in Supabase
+- RLS policies ensure only admins can modify data
+- Public users can only view and play tracks (read-only)
+- Storage buckets are public for playback but upload-restricted
+- Admin role checked server-side via `has_role()` function
+
+**Recommended for:**
+- Personal music collections
+- Single-user applications
+- Home media servers
+- Demo/portfolio projects
+
+**NOT recommended for:**
+- Multi-user music platforms
+- Commercial streaming services  
+- Applications requiring user registration
+- Systems needing password recovery
 
 ---
 
