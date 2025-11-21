@@ -90,6 +90,26 @@ export default function Admin() {
     }
   }, [user, role, roleLoading, authLoading, navigate]);
 
+  useEffect(() => {
+    // Check if any admin exists in the system
+    const checkAdminExists = async () => {
+      if (!authLoading && !user) {
+        const { data } = await supabase
+          .from('user_roles')
+          .select('*')
+          .eq('role', 'admin')
+          .maybeSingle();
+
+        if (!data) {
+          // No admin exists, redirect to setup
+          navigate('/setup');
+        }
+      }
+    };
+
+    checkAdminExists();
+  }, [user, authLoading, navigate]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoggingIn(true);

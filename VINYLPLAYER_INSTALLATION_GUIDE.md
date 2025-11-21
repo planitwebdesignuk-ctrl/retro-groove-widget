@@ -31,7 +31,7 @@ Print this checklist and verify each item:
 **Dependencies:**
 - [ ] Installed `music-metadata-browser` package
 
-**Code Files (All 9 Required):**
+**Code Files (All 10 Required):**
 - [ ] `src/components/VinylPlayer.tsx`
 - [ ] `src/hooks/useAuth.ts`
 - [ ] `src/hooks/useUserRole.ts`
@@ -39,6 +39,7 @@ Print this checklist and verify each item:
 - [ ] `src/hooks/useLabelImages.ts`
 - [ ] `src/utils/mp3Metadata.ts`
 - [ ] `src/pages/Index.tsx`
+- [ ] `src/pages/Setup.tsx` ✨ (NEW - First-run setup)
 - [ ] `src/pages/Admin.tsx`
 - [ ] `src/App.tsx` (routes updated)
 
@@ -396,7 +397,7 @@ create policy "Admins can delete label images"
 ⚠️ **CRITICAL CHECKLIST - DO NOT SKIP ANY STEPS:**
 
 - [ ] Step 1: Run the COMPLETE database migration (includes ALL triggers and functions)
-- [ ] Step 2: Create your first admin user
+- [ ] Step 2: Navigate to `/setup` and create your first admin account
 - [ ] Step 3: Install `music-metadata-browser` dependency
 - [ ] Step 4: Create ALL component files (10 files total)
 - [ ] Step 5: Upload ALL required assets (5 images + 2 audio files)
@@ -585,59 +586,6 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- ⚠️ AUTO-SETUP: Create default admin user
--- This function creates the default admin user (admin@admin.com / admin)
--- Password MUST be changed on first login for security
-create or replace function public.create_default_admin()
-returns void
-language plpgsql
-security definer
-as $$
-declare
-  admin_user_id uuid;
-begin
-  -- Check if admin already exists
-  if not exists (select 1 from auth.users where email = 'admin@admin.com') then
-    -- Create the admin user
-    insert into auth.users (
-      instance_id,
-      id,
-      aud,
-      role,
-      email,
-      encrypted_password,
-      email_confirmed_at,
-      raw_app_meta_data,
-      raw_user_meta_data,
-      created_at,
-      updated_at,
-      confirmation_token,
-      recovery_token
-    ) values (
-      '00000000-0000-0000-0000-000000000000',
-      gen_random_uuid(),
-      'authenticated',
-      'authenticated',
-      'admin@admin.com',
-      crypt('admin', gen_salt('bf')),
-      now(),
-      '{"provider":"email","providers":["email"]}',
-      '{"needs_password_change":true}',
-      now(),
-      now(),
-      '',
-      ''
-    ) returning id into admin_user_id;
-    
-    -- Assign admin role
-    insert into public.user_roles (user_id, role)
-    values (admin_user_id, 'admin');
-  end if;
-end;
-$$;
-
--- Execute the function to create admin
-select public.create_default_admin();
 
 -- Insert default label image record
 insert into public.label_images (name, image_url, is_active, uploaded_by)
@@ -656,45 +604,60 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.label_images;
 **✅ VERIFICATION:** After running this migration, you should have:
 - ✅ 3 tables: `tracks`, `user_roles`, `label_images`
 - ✅ 2 storage buckets: `tracks`, `label-images`
-- ✅ 4 functions: `has_role()`, `ensure_single_active_label()`, `handle_new_user()`, `create_default_admin()`
+- ✅ 3 functions: `has_role()`, `ensure_single_active_label()`, `handle_new_user()`
 - ✅ 2 triggers: `single_active_label_trigger`, `on_auth_user_created`
-- ✅ 1 default admin user: `admin@admin.com` (password: `admin`)
 - ✅ 1 default label image: "Default Blank Label" (active)
 - ✅ Realtime enabled for `label_images` table
 
-### Step 2: Login and Change Default Password
+### Step 2: First-Time Setup (CRITICAL)
 
-**🔐 Default Admin Credentials:**
+**🚀 AUTO-SETUP PROCESS:**
 
-The installation automatically creates a default admin account:
+After running the database migration, you need to create ONE admin account to manage the system.
 
-- **Username:** `admin`
-- **Email:** `admin@admin.com`
-- **Password:** `admin`
+**📍 Navigate to `/setup` in your application**
 
-**⚠️ CRITICAL SECURITY STEPS:**
+The first time you run your remix:
+1. Visit your app URL and add `/setup` to the end (e.g., `https://yourapp.lovable.app/setup`)
+2. If you try to go to `/admin` first, you'll be automatically redirected to `/setup`
 
-1. **Navigate to `/admin` in your application**
-2. **Login with:**
-   - Username: `admin`
-   - Password: `admin`
+**👤 Create Your Admin Account:**
 
-3. **You will be REQUIRED to change the password immediately**
-   - The system forces a password change on first login
-   - Choose a strong password (minimum 8 characters)
-   - **IMPORTANT:** There is NO password recovery - save your new password securely!
+Fill in the setup form:
+- **Email**: `admin@admin.com` (or your preferred email)
+- **Password**: Choose a strong password (minimum 8 characters)
+- **Confirm Password**: Re-enter your password
+- Click **"Create Admin Account"**
 
-4. **After changing password:**
-   - You'll be redirected to the admin dashboard at `/admin`
-   - You can now manage tracks and upload music
+**✅ You'll be automatically logged in and redirected to `/admin`**
 
-**🔒 Single-Admin Architecture:**
-- This system supports **ONE admin user only**
+**⚠️ SAVE YOUR PASSWORD:**
+- There is **NO password recovery**
+- Use a password manager
+- This is the **ONLY admin account** for the system
+
+**💡 What Happens During Setup:**
+- Creates user account using proper Supabase Auth API
+- Automatically assigns admin role in the database
+- Respects your Supabase email confirmation settings
+- Ensures proper authentication flow
+
+**🔧 Optional: Disable Email Confirmation (for testing):**
+
+If you want faster testing without email confirmation:
+1. Open your backend by clicking **"View Backend"** in Lovable
+2. Go to **Authentication → Email Auth**
+3. Toggle **"Confirm email"** to **OFF**
+
+⚠️ For production, keep email confirmation **ON** and configure SMTP.
+
+**🏗️ Single-Admin Architecture:**
+- One admin user manages the entire system
 - No user registration or multi-user management
 - Perfect for personal music collections
-- The `/admin` page handles both **login and dashboard** (no separate auth page)
+- The `/admin` page handles the admin dashboard
 
-**💡 TIP:** Use a password manager to securely store your new admin password.
+**💡 TIP:** Use a password manager to securely store your admin password.
 
 ### Step 3: Add Required Dependencies
 
@@ -716,8 +679,9 @@ Create these files in your project (full code provided in sections below):
 - [ ] 5. `src/hooks/useLabelImages.ts` - Label images management hook (REQUIRED)
 - [ ] 6. `src/utils/mp3Metadata.ts` - Metadata extraction utility (REQUIRED)
 - [ ] 7. `src/pages/Index.tsx` - Public player page (REQUIRED)
-- [ ] 8. `src/pages/Admin.tsx` - Admin dashboard with integrated login (REQUIRED)
-- [ ] 9. Update `src/App.tsx` - Add routes (REQUIRED)
+- [ ] 8. `src/pages/Setup.tsx` - First-run admin setup (REQUIRED) ✨
+- [ ] 9. `src/pages/Admin.tsx` - Admin dashboard (REQUIRED)
+- [ ] 10. Update `src/App.tsx` - Add routes (REQUIRED)
 
 **📝 Find the complete code for each file in the sections below starting at line ~560.**
 
@@ -1730,15 +1694,192 @@ const Index = () => {
 export default Index;
 ```
 
-### 7. Admin Page (Login & Track Management)
+### 7. Setup Page (First-Run Admin Creation)
 
-**NOTE:** This page now handles BOTH login and admin dashboard functionality. When not authenticated, it displays a login form. After successful login, it shows the full admin dashboard.
+**✨ NEW: First-time setup page for creating the admin account**
+
+`src/pages/Setup.tsx` - Admin account creation on first run:
+
+**Key Features:**
+- Automatically checks if admin already exists
+- Redirects to `/admin` if admin is present
+- Creates admin user using proper Supabase Auth API
+- Assigns admin role in database
+- Handles email confirmation settings automatically
+
+```tsx
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from '@/hooks/use-toast';
+
+export default function Setup() {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('admin@admin.com');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
+
+  useEffect(() => {
+    // Check if admin already exists
+    const checkAdminExists = async () => {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('*')
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (data) {
+        // Admin exists, redirect to admin page
+        navigate('/admin');
+      }
+      setCheckingAdmin(false);
+    };
+
+    checkAdminExists();
+  }, [navigate]);
+
+  const handleSetup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (password !== confirmPassword) {
+      toast({
+        title: 'Passwords do not match',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (password.length < 8) {
+      toast({
+        title: 'Password must be at least 8 characters',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // 1. Create the user using Supabase Auth API
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (signUpError) throw signUpError;
+      if (!authData.user) throw new Error('User creation failed');
+
+      // 2. Assign admin role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({ user_id: authData.user.id, role: 'admin' });
+
+      if (roleError) throw roleError;
+
+      toast({
+        title: 'Admin account created!',
+        description: 'Redirecting to admin dashboard...',
+      });
+
+      // Wait a moment for the session to be established
+      setTimeout(() => {
+        navigate('/admin');
+      }, 1000);
+
+    } catch (error: any) {
+      console.error('Setup error:', error);
+      toast({
+        title: 'Setup failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (checkingAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+        <p className="text-white">Checking setup status...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-2xl">VinylPlayer Setup</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Create your admin account to get started
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSetup} className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Email</label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Password</label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={8}
+                required
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Confirm Password</label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                minLength={8}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Creating...' : 'Create Admin Account'}
+            </Button>
+          </form>
+          
+          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded text-sm">
+            <p className="font-medium text-amber-900">⚠️ Important:</p>
+            <ul className="list-disc list-inside text-amber-800 mt-1">
+              <li>Use a strong password (min 8 characters)</li>
+              <li>Save your password securely</li>
+              <li>No password recovery available</li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+```
+
+### 8. Admin Page (Login & Track Management)
+
+**NOTE:** This page now handles BOTH login and admin dashboard functionality. When not authenticated, it displays a login form. After successful login, it shows the full admin dashboard. If no admin exists in the system, it automatically redirects to `/setup`.
 
 `src/pages/Admin.tsx` - Complete implementation with integrated login:
 
 **Key Features:**
+- Automatically redirects to `/setup` if no admin exists
 - Inline login form when user is not authenticated
-- Non-dismissible password change dialog on first login
 - Full track management (CRUD operations)
 - Label image management
 - Bulk MP3 upload with metadata extraction
@@ -2115,6 +2256,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
+import Setup from "./pages/Setup";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
@@ -2128,6 +2270,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/setup" element={<Setup />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
@@ -2617,6 +2760,7 @@ src/hooks/useTracks.ts ✓
 src/hooks/useLabelImages.ts ✓
 src/utils/mp3Metadata.ts ✓
 src/pages/Index.tsx ✓
+src/pages/Setup.tsx ✓
 src/pages/Admin.tsx ✓
 public/images/turntable-base.png ✓
 public/images/vinyl-record.png ✓
