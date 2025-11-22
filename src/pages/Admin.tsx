@@ -12,8 +12,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useTracks, useDeleteTrack, useUpdateTrack } from '@/hooks/useTracks';
 import { useLabelImages, useUploadLabelImage, useSetActiveLabelImage, useDeleteLabelImage } from '@/hooks/useLabelImages';
-import { Pencil, Trash2, LogOut, Plus, FolderUp, Upload, Image as ImageIcon, Check, Key, Lock } from 'lucide-react';
+import { Pencil, Trash2, LogOut, Plus, FolderUp, Upload, Image as ImageIcon, Check, Key, Lock, AlertTriangle, Copy } from 'lucide-react';
 import { extractMp3Metadata } from '@/utils/mp3Metadata';
+import { checkStorageBuckets, STORAGE_BUCKETS_MIGRATION, type StorageBucketsHealth } from '@/utils/backendHealth';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -76,6 +78,11 @@ export default function Admin() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  
+  // Backend health check state
+  const [storageHealth, setStorageHealth] = useState<StorageBucketsHealth | null>(null);
+  const [healthCheckComplete, setHealthCheckComplete] = useState(false);
+  const [showMigrationSQL, setShowMigrationSQL] = useState(false);
 
   const needsPasswordChange = user?.user_metadata?.needs_password_change === true;
 
@@ -109,6 +116,28 @@ export default function Admin() {
 
     checkAdminExists();
   }, [user, authLoading, navigate]);
+
+  // Check storage bucket health when admin page loads
+  useEffect(() => {
+    const performHealthCheck = async () => {
+      if (user && role === 'admin' && !healthCheckComplete) {
+        console.log('Performing backend storage health check...');
+        const health = await checkStorageBuckets();
+        console.log('Storage health check results:', health);
+        setStorageHealth(health);
+        setHealthCheckComplete(true);
+        
+        if (!health.allHealthy) {
+          console.error('Storage buckets missing:', {
+            tracks: !health.tracks.exists,
+            labelImages: !health.labelImages.exists,
+          });
+        }
+      }
+    };
+
+    performHealthCheck();
+  }, [user, role, healthCheckComplete]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,6 +207,16 @@ export default function Admin() {
     e.preventDefault();
     if (!uploadingFile || !newTitle || !newArtist) return;
 
+    // Check if storage buckets exist before attempting upload
+    if (storageHealth && !storageHealth.tracks.exists) {
+      toast({
+        title: 'Backend Setup Required',
+        description: 'The tracks storage bucket does not exist. See the warning banner above for setup instructions.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // Validate file extension
     if (!uploadingFile.name.toLowerCase().endsWith('.mp3')) {
       toast({
@@ -227,7 +266,17 @@ export default function Admin() {
         .from('tracks')
         .upload(fileName, uploadingFile);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Track upload error:', uploadError);
+        
+        // Detect specific error types
+        if (uploadError.message?.toLowerCase().includes('bucket') && 
+            uploadError.message?.toLowerCase().includes('not found')) {
+          throw new Error('The tracks storage bucket does not exist in this project. See the warning banner above for setup instructions.');
+        }
+        
+        throw uploadError;
+      }
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
@@ -269,6 +318,16 @@ export default function Admin() {
     if (!files || files.length === 0) return;
     
     console.log('Bulk upload triggered, files:', files.length);
+
+    // Check if storage buckets exist before attempting upload
+    if (storageHealth && !storageHealth.tracks.exists) {
+      toast({
+        title: 'Backend Setup Required',
+        description: 'The tracks storage bucket does not exist. See the warning banner above for setup instructions.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     // Filter and validate files with comprehensive checks
     const mp3Files = Array.from(files).filter((file) => {
@@ -333,7 +392,17 @@ export default function Admin() {
           .from('tracks')
           .upload(fileName, file);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error(`Track upload error for ${file.name}:`, uploadError);
+          
+          // Detect specific error types
+          if (uploadError.message?.toLowerCase().includes('bucket') && 
+              uploadError.message?.toLowerCase().includes('not found')) {
+            throw new Error('Storage bucket not found');
+          }
+          
+          throw uploadError;
+        }
 
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
@@ -394,6 +463,16 @@ export default function Admin() {
   const handleUploadLabel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!uploadingLabel) return;
+
+    // Check if storage buckets exist before attempting upload
+    if (storageHealth && !storageHealth.labelImages.exists) {
+      toast({
+        title: 'Backend Setup Required',
+        description: 'The label-images storage bucket does not exist. See the warning banner above for setup instructions.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const validExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
     const fileExt = uploadingLabel.name.toLowerCase().slice(uploadingLabel.name.lastIndexOf('.'));
@@ -519,6 +598,80 @@ export default function Admin() {
             </Button>
           </div>
         </div>
+
+        {/* Storage Buckets Missing Warning Banner */}
+        {storageHealth && !storageHealth.allHealthy && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-5 w-5" />
+            <AlertTitle className="text-lg font-semibold">Storage Buckets Missing</AlertTitle>
+            <AlertDescription className="mt-2 space-y-3">
+              <p className="text-sm">
+                Your backend is missing storage buckets required for uploads. This is common in remixed projects 
+                because Supabase's pg_dump process doesn't capture storage bucket configurations.
+              </p>
+              
+              <div className="space-y-1 text-sm">
+                <p className="font-medium">Missing buckets:</p>
+                <ul className="list-disc list-inside ml-2 space-y-1">
+                  {!storageHealth.tracks.exists && (
+                    <li>
+                      <span className="font-mono">tracks</span> - Required for MP3 uploads
+                      {storageHealth.tracks.error && (
+                        <span className="text-xs ml-2">({storageHealth.tracks.error})</span>
+                      )}
+                    </li>
+                  )}
+                  {!storageHealth.labelImages.exists && (
+                    <li>
+                      <span className="font-mono">label-images</span> - Required for label image uploads
+                      {storageHealth.labelImages.error && (
+                        <span className="text-xs ml-2">({storageHealth.labelImages.error})</span>
+                      )}
+                    </li>
+                  )}
+                </ul>
+              </div>
+
+              <div className="pt-2 space-y-2">
+                <p className="text-sm font-medium">To fix this:</p>
+                <ol className="list-decimal list-inside ml-2 space-y-1 text-sm">
+                  <li>Copy the SQL migration below</li>
+                  <li>Open your backend (Cloud tab → Database)</li>
+                  <li>Create a new migration and paste the SQL</li>
+                  <li>Run the migration</li>
+                  <li>Refresh this page</li>
+                </ol>
+                
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowMigrationSQL(!showMigrationSQL)}
+                  >
+                    {showMigrationSQL ? 'Hide' : 'Show'} SQL Migration
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(STORAGE_BUCKETS_MIGRATION);
+                      toast({ title: 'SQL copied to clipboard!' });
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy SQL
+                  </Button>
+                </div>
+
+                {showMigrationSQL && (
+                  <pre className="mt-3 p-3 bg-muted rounded-md text-xs overflow-x-auto max-h-64">
+                    {STORAGE_BUCKETS_MIGRATION}
+                  </pre>
+                )}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
