@@ -4,6 +4,19 @@ This guide contains everything you need to add the VinylPlayer component with co
 
 ---
 
+## 🚨 CRITICAL: DISABLE EMAIL CONFIRMATION BEFORE STARTING
+
+**YOU MUST DO THIS FIRST OR THE SETUP WILL FAIL:**
+
+1. Open your backend settings in Lovable
+2. Navigate to: **Authentication → Providers → Email**
+3. **DISABLE "Confirm email"** (turn it OFF)
+4. Save the settings
+
+**Why this matters:** Email confirmation is enabled by default in new projects, but no email service is configured. If you skip this step, you won't be able to complete the admin setup after running the migrations.
+
+---
+
 ## ⚠️ BEFORE YOU BEGIN - READ THIS FIRST
 
 ### Critical Success Factors
