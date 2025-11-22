@@ -82,9 +82,18 @@ export function useUploadLabelImage() {
       toast({ title: 'Label image uploaded successfully' });
     },
     onError: (error: any) => {
+      console.error('Label image upload error:', error);
+      
+      // Detect specific error types
+      let errorMessage = error.message;
+      if (error.message?.toLowerCase().includes('bucket') && 
+          error.message?.toLowerCase().includes('not found')) {
+        errorMessage = 'The label-images storage bucket does not exist in this project. Please check the admin panel for setup instructions.';
+      }
+      
       toast({ 
         title: 'Error uploading label image',
-        description: error.message,
+        description: errorMessage,
         variant: 'destructive'
       });
     }
