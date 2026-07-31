@@ -44,6 +44,27 @@ export type Database = {
         }
         Relationships: []
       }
+      player_settings: {
+        Row: {
+          active_theme: string
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          active_theme?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          active_theme?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tracks: {
         Row: {
           artist: string

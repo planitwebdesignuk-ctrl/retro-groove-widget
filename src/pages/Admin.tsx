@@ -16,6 +16,7 @@ import { Pencil, Trash2, LogOut, Plus, FolderUp, Upload, Image as ImageIcon, Che
 import { extractMp3Metadata } from '@/utils/mp3Metadata';
 import { checkStorageBuckets, STORAGE_BUCKETS_MIGRATION, type StorageBucketsHealth } from '@/utils/backendHealth';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import PlayerThemePicker from '@/components/admin/PlayerThemePicker';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -823,6 +824,8 @@ export default function Admin() {
             )}
           </CardContent>
         </Card>
+
+        <PlayerThemePicker />
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

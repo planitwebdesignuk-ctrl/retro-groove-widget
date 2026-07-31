@@ -9,10 +9,13 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-gradient-to-br from-[hsl(30,14%,72%)] via-[hsl(30,12%,60%)] to-[hsl(28,14%,44%)] text-[hsl(26,25%,14%)] shadow-[0_4px_0_0_hsl(26,20%,24%),0_6px_12px_-2px_hsl(22,40%,5%)] hover:shadow-[0_6px_0_0_hsl(26,20%,24%),0_8px_16px_-2px_hsl(22,40%,8%)] hover:-translate-y-0.5 active:shadow-[0_2px_0_0_hsl(26,20%,20%),0_3px_8px_-2px_hsl(22,40%,5%)] active:translate-y-0.5",
+        default:
+          "bg-gradient-to-br from-[hsl(var(--knob-top))] via-[hsl(var(--knob-mid))] to-[hsl(var(--knob-bottom))] text-[hsl(var(--knob-text))] shadow-[0_4px_0_0_hsl(var(--knob-edge)),0_6px_12px_-2px_hsl(var(--knob-shadow))] hover:shadow-[0_6px_0_0_hsl(var(--knob-edge)),0_8px_16px_-2px_hsl(var(--knob-shadow))] hover:-translate-y-0.5 active:shadow-[0_2px_0_0_hsl(var(--knob-edge)),0_3px_8px_-2px_hsl(var(--knob-shadow))] active:translate-y-0.5",
         destructive: "bg-gradient-to-b from-destructive to-[hsl(6,60%,35%)] text-destructive-foreground shadow-[0_4px_0_0_hsl(6,60%,28%),0_6px_12px_-2px_hsl(6,60%,12%)] hover:shadow-[0_6px_0_0_hsl(6,60%,28%),0_8px_16px_-2px_hsl(6,60%,14%)] hover:-translate-y-0.5 active:shadow-[0_2px_0_0_hsl(6,60%,24%),0_3px_8px_-2px_hsl(6,60%,12%)] active:translate-y-0.5",
-        outline: "border-2 border-[hsl(28,18%,30%)] bg-gradient-to-b from-card to-secondary text-foreground shadow-[0_3px_0_0_hsl(26,18%,16%),0_4px_8px_-2px_hsl(22,30%,6%)] hover:shadow-[0_5px_0_0_hsl(26,18%,16%),0_6px_12px_-2px_hsl(22,30%,8%)] hover:-translate-y-0.5 active:shadow-[0_1px_0_0_hsl(26,18%,13%),0_2px_6px_-2px_hsl(22,30%,5%)] active:translate-y-0.5",
-        secondary: "bg-gradient-to-b from-secondary to-[hsl(26,20%,11%)] text-secondary-foreground shadow-[0_3px_0_0_hsl(26,18%,9%),0_5px_10px_-2px_hsl(22,30%,5%)] hover:shadow-[0_5px_0_0_hsl(26,18%,9%),0_7px_14px_-2px_hsl(22,30%,8%)] hover:-translate-y-0.5 active:shadow-[0_1px_0_0_hsl(26,18%,7%),0_2px_6px_-2px_hsl(22,30%,4%)] active:translate-y-0.5",
+        outline:
+          "border-2 border-[hsl(var(--knob-outline))] bg-gradient-to-b from-card to-secondary text-foreground shadow-[0_3px_0_0_hsl(var(--knob-edge)),0_4px_8px_-2px_hsl(var(--knob-shadow))] hover:shadow-[0_5px_0_0_hsl(var(--knob-edge)),0_6px_12px_-2px_hsl(var(--knob-shadow))] hover:-translate-y-0.5 active:shadow-[0_1px_0_0_hsl(var(--knob-edge)),0_2px_6px_-2px_hsl(var(--knob-shadow))] active:translate-y-0.5",
+        secondary:
+          "bg-gradient-to-b from-secondary to-[hsl(var(--card))] text-secondary-foreground shadow-[0_3px_0_0_hsl(var(--knob-edge)),0_5px_10px_-2px_hsl(var(--knob-shadow))] hover:shadow-[0_5px_0_0_hsl(var(--knob-edge)),0_7px_14px_-2px_hsl(var(--knob-shadow))] hover:-translate-y-0.5 active:shadow-[0_1px_0_0_hsl(var(--knob-edge)),0_2px_6px_-2px_hsl(var(--knob-shadow))] active:translate-y-0.5",
         ghost: "hover:bg-accent/20 hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },

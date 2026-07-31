@@ -2,6 +2,11 @@ import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { Play, Square, SkipBack, SkipForward, Upload, Copy, RotateCcw, Rewind, FastForward } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  applyPlayerThemeTokens,
+  getPlayerTheme,
+  type PlayerTheme,
+} from "@/config/playerThemes";
 
 interface Track {
   id: number;
@@ -13,32 +18,13 @@ interface Track {
 interface VinylPlayerProps {
   tracks: Track[];
   labelImageUrl?: string; // Optional custom center label for vinyl record
+  /** Look & feel preset chosen by the admin. Defaults to Vintage Walnut. */
+  theme?: PlayerTheme;
 }
 
-// Centralized configuration for all visual elements
-const DEFAULT_CONFIG = {
+// Behaviour shared by every look & feel; geometry comes from the active theme.
+const BASE_CONFIG = {
   configVersion: 12,
-  base: {
-    aspectRatio: 1.169, // Updated after image loads
-  },
-  platter: {
-    leftPct: 11.4,
-    topPct: 17.9,
-    sizePct: 55.0,
-  },
-  tonearm: {
-    rightPct: 2.7,
-    topPct: 10.0,
-    widthPct: 39.3,
-    lengthScale: 1.0,
-    pivotXPct: 54.0,
-    pivotYPct: 24.0,
-  },
-  angles: {
-    REST: 2.0,
-    START: 27.5,
-    END: 41.4,
-  },
   tonearmSpeed: {
     playMs: 1800,
     stopMs: 1200,
@@ -54,33 +40,50 @@ const DEFAULT_CONFIG = {
   },
 };
 
-const STORAGE_KEY = 'vinyl-player-config-v12';
+const buildThemeConfig = (theme: PlayerTheme) => ({
+  ...BASE_CONFIG,
+  base: { ...theme.base },
+  platter: { ...theme.platter },
+  tonearm: { ...theme.tonearm },
+  angles: { ...theme.angles },
+});
+
+const buildStorageKey = (themeId: string) =>
+  `vinyl-player-config-v12-${themeId}`;
+
+const loadConfig = (theme: PlayerTheme) => {
+  const defaults = buildThemeConfig(theme);
+  try {
+    const saved = localStorage.getItem(buildStorageKey(theme.id));
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.configVersion === defaults.configVersion) return parsed;
+    }
+  } catch {}
+  return defaults;
+};
 
 // No need for synthetic sound generators - using real audio files
 
-const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png' }: VinylPlayerProps) => {
+const VinylPlayer = ({
+  tracks,
+  labelImageUrl = '/images/label-cobnet-strange.png',
+  theme = getPlayerTheme(),
+}: VinylPlayerProps) => {
+  const themeConfig = useMemo(() => buildThemeConfig(theme), [theme]);
+  const storageKey = buildStorageKey(theme.id);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isStartingPlayback, setIsStartingPlayback] = useState(false);
   const [isInitialPlay, setIsInitialPlay] = useState(true); // Track if this is the very first play
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [calibrationMode, setCalibrationMode] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState(DEFAULT_CONFIG.base.aspectRatio);
+  const [aspectRatio, setAspectRatio] = useState(theme.base.aspectRatio);
   const [trackDurations, setTrackDurations] = useState<number[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [isLastTrackFinished, setIsLastTrackFinished] = useState(false);
-  const [config, setConfig] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Version check: ignore saved config if version doesn't match
-      if (parsed.configVersion === DEFAULT_CONFIG.configVersion) {
-        return parsed;
-      }
-    }
-    return DEFAULT_CONFIG;
-  });
+  const [config, setConfig] = useState(() => loadConfig(theme));
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [referenceOpacity, setReferenceOpacity] = useState(50);
   const [adjustTarget, setAdjustTarget] = useState<'platter' | 'tonearm' | 'pivot' | 'angles' | 'tonearm-speed-play' | 'tonearm-speed-stop' | 'vinyl'>('platter');
@@ -93,6 +96,13 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
   const runoutSoundRef = useRef<HTMLAudioElement | null>(null);
 
   const currentTrack = tracks[currentTrackIndex];
+
+  // Re-calibrate and repaint the palette whenever the admin's look & feel changes
+  useEffect(() => {
+    applyPlayerThemeTokens(theme);
+    setConfig(loadConfig(theme));
+    setAspectRatio(theme.base.aspectRatio);
+  }, [theme]);
 
   // Initialize audio effects
   useEffect(() => {
@@ -217,9 +227,9 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
         localStorage.removeItem('vinyl-player-config');
         localStorage.removeItem('vinyl-player-config-v2');
         localStorage.removeItem('vinyl-player-config-v6');
-        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(storageKey);
       } catch {}
-      setConfig(DEFAULT_CONFIG);
+      setConfig(themeConfig);
       console.log('Config reset to defaults');
     }
     if (params.get('calibrate') === '1') {
@@ -307,7 +317,7 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
 
       if (updated !== config) {
         setConfig(updated);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        localStorage.setItem(storageKey, JSON.stringify(updated));
       }
     };
 
@@ -341,8 +351,8 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
   };
 
   const resetConfig = () => {
-    setConfig(DEFAULT_CONFIG);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CONFIG));
+    setConfig(themeConfig);
+    localStorage.setItem(storageKey, JSON.stringify(themeConfig));
   };
 
   const forceDefaults = () => {
@@ -351,10 +361,10 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
       localStorage.removeItem('vinyl-player-config');
       localStorage.removeItem('vinyl-player-config-v2');
       localStorage.removeItem('vinyl-player-config-v6');
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(storageKey);
     } catch {}
-    setConfig(DEFAULT_CONFIG);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CONFIG));
+    setConfig(themeConfig);
+    localStorage.setItem(storageKey, JSON.stringify(themeConfig));
   };
 
   useEffect(() => {
@@ -708,7 +718,7 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
           {/* Background - Turntable base with full scene */}
           <img 
             ref={baseImageRef}
-            src="/images/turntable-base.png"
+            src={theme.assets.deck}
             alt="Turntable"
             style={{
               width: '100%',
@@ -766,7 +776,7 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
             >
               {/* Base vinyl disc */}
               <img
-                src="/images/vinyl-record.png"
+                src={theme.assets.record}
                 alt="Vinyl Record"
                 style={{
                   width: '100%',
@@ -841,7 +851,7 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
             }}
           >
             <img
-              src="/images/Tonearm.png"
+              src={theme.assets.tonearm}
               alt="Tonearm"
               style={{
                 width: '100%',
