@@ -17,7 +17,7 @@ interface VinylPlayerProps {
 
 // Centralized configuration for all visual elements
 const DEFAULT_CONFIG = {
-  configVersion: 10,
+  configVersion: 11,
   base: {
     aspectRatio: 1.169, // Updated after image loads
   },
@@ -35,7 +35,7 @@ const DEFAULT_CONFIG = {
     pivotYPct: 24.0,
   },
   angles: {
-    REST: -8.0,
+    REST: 10.0,
     START: 27.5,
     END: 41.4,
   },
@@ -54,7 +54,7 @@ const DEFAULT_CONFIG = {
   },
 };
 
-const STORAGE_KEY = 'vinyl-player-config-v10';
+const STORAGE_KEY = 'vinyl-player-config-v11';
 
 // No need for synthetic sound generators - using real audio files
 
