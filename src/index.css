@@ -44,6 +44,15 @@ All colors MUST be HSL.
     --metal-shine: 34 12% 72%;
     --warm-shadow: 22 40% 4%;
 
+    /* Physical control knobs (buttons) — overridden per player theme */
+    --knob-top: 30 14% 72%;
+    --knob-mid: 30 12% 60%;
+    --knob-bottom: 28 14% 44%;
+    --knob-text: 26 25% 14%;
+    --knob-edge: 26 20% 24%;
+    --knob-outline: 28 18% 30%;
+    --knob-shadow: 22 40% 5%;
+
     /* Physical staging: light, sheen and cast shadow */
     --shadow-deck:
       0 2px 2px hsl(var(--warm-shadow) / 0.6),
