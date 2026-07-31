@@ -81,6 +81,13 @@ export const PLAYER_THEMES: PlayerTheme[] = [
         "radial-gradient(140% 120% at 22% 12%, hsl(38 45% 82% / 0.3) 0%, hsl(34 35% 70% / 0.1) 28%, transparent 58%)",
       "--surface-room":
         "radial-gradient(ellipse 120% 90% at 50% -20%, hsl(28 22% 15%) 0%, hsl(26 24% 9%) 45%, hsl(24 26% 5%) 100%)",
+      "--knob-top": "30 14% 72%",
+      "--knob-mid": "30 12% 60%",
+      "--knob-bottom": "28 14% 44%",
+      "--knob-text": "26 25% 14%",
+      "--knob-edge": "26 20% 24%",
+      "--knob-outline": "28 18% 30%",
+      "--knob-shadow": "22 40% 5%",
     },
   },
   {
@@ -132,6 +139,13 @@ export const PLAYER_THEMES: PlayerTheme[] = [
         "radial-gradient(140% 120% at 24% 10%, hsl(210 20% 90% / 0.26) 0%, hsl(210 12% 72% / 0.08) 28%, transparent 58%)",
       "--surface-room":
         "radial-gradient(ellipse 120% 90% at 50% -20%, hsl(220 8% 12%) 0%, hsl(220 9% 7%) 45%, hsl(220 10% 4%) 100%)",
+      "--knob-top": "220 6% 40%",
+      "--knob-mid": "220 7% 28%",
+      "--knob-bottom": "220 8% 18%",
+      "--knob-text": "210 14% 88%",
+      "--knob-edge": "220 10% 10%",
+      "--knob-outline": "220 8% 26%",
+      "--knob-shadow": "220 12% 3%",
     },
   },
   {
@@ -183,6 +197,13 @@ export const PLAYER_THEMES: PlayerTheme[] = [
         "radial-gradient(140% 120% at 22% 12%, hsl(44 50% 94% / 0.34) 0%, hsl(40 35% 82% / 0.12) 28%, transparent 58%)",
       "--surface-room":
         "radial-gradient(ellipse 120% 90% at 50% -20%, hsl(38 40% 94%) 0%, hsl(34 30% 87%) 45%, hsl(30 24% 79%) 100%)",
+      "--knob-top": "40 45% 96%",
+      "--knob-mid": "36 32% 88%",
+      "--knob-bottom": "32 26% 76%",
+      "--knob-text": "28 25% 22%",
+      "--knob-edge": "30 22% 62%",
+      "--knob-outline": "34 22% 70%",
+      "--knob-shadow": "28 25% 40%",
     },
   },
   {
@@ -234,6 +255,13 @@ export const PLAYER_THEMES: PlayerTheme[] = [
         "radial-gradient(140% 120% at 22% 12%, hsl(205 35% 94% / 0.3) 0%, hsl(205 22% 80% / 0.1) 28%, transparent 58%)",
       "--surface-room":
         "radial-gradient(ellipse 120% 90% at 50% -20%, hsl(212 16% 22%) 0%, hsl(212 17% 15%) 45%, hsl(212 20% 10%) 100%)",
+      "--knob-top": "205 18% 82%",
+      "--knob-mid": "205 14% 68%",
+      "--knob-bottom": "208 14% 52%",
+      "--knob-text": "212 25% 14%",
+      "--knob-edge": "212 16% 30%",
+      "--knob-outline": "212 14% 38%",
+      "--knob-shadow": "212 22% 8%",
     },
   },
 ];
