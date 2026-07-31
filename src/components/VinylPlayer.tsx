@@ -97,6 +97,13 @@ const VinylPlayer = ({
 
   const currentTrack = tracks[currentTrackIndex];
 
+  // Re-calibrate and repaint the palette whenever the admin's look & feel changes
+  useEffect(() => {
+    applyPlayerThemeTokens(theme);
+    setConfig(loadConfig(theme));
+    setAspectRatio(theme.base.aspectRatio);
+  }, [theme]);
+
   // Initialize audio effects
   useEffect(() => {
     try {
@@ -711,7 +718,7 @@ const VinylPlayer = ({
           {/* Background - Turntable base with full scene */}
           <img 
             ref={baseImageRef}
-            src="/images/turntable-base.png"
+            src={theme.assets.deck}
             alt="Turntable"
             style={{
               width: '100%',
@@ -769,7 +776,7 @@ const VinylPlayer = ({
             >
               {/* Base vinyl disc */}
               <img
-                src="/images/vinyl-record.png"
+                src={theme.assets.record}
                 alt="Vinyl Record"
                 style={{
                   width: '100%',
@@ -844,7 +851,7 @@ const VinylPlayer = ({
             }}
           >
             <img
-              src="/images/Tonearm.png"
+              src={theme.assets.tonearm}
               alt="Tonearm"
               style={{
                 width: '100%',
