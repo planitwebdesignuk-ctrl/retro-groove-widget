@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useActivePlayerTheme, usePlayerThemeRealtime } from "@/hooks/usePlayerTheme";
 import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
@@ -17,6 +18,8 @@ const Index = () => {
   const { data: tracks, isLoading } = useTracks();
   const { data: activeLabel } = useActiveLabelImage();
   const { data: role } = useUserRole(user?.id);
+  const { theme } = useActivePlayerTheme();
+  usePlayerThemeRealtime();
 
   // Subscribe to label changes for realtime updates
   useEffect(() => {
@@ -63,6 +66,7 @@ const Index = () => {
         <VinylPlayer 
           tracks={tracks} 
           labelImageUrl={activeLabel?.image_url || "/images/label-blank-template.png"} 
+          theme={theme}
         />
       ) : (
         <div className="min-h-screen flex items-center justify-center bg-vignette">
