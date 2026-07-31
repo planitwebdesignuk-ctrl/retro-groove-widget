@@ -17,27 +17,27 @@ interface VinylPlayerProps {
 
 // Centralized configuration for all visual elements
 const DEFAULT_CONFIG = {
-  configVersion: 8,
+  configVersion: 9,
   base: {
-    aspectRatio: 1.18, // Updated after image loads
+    aspectRatio: 1.169, // Updated after image loads
   },
   platter: {
-    leftPct: 12.9,
-    topPct: 10.7,
-    sizePct: 55.8,
+    leftPct: 11.4,
+    topPct: 17.9,
+    sizePct: 55.0,
   },
   tonearm: {
-    rightPct: 18.0,
-    topPct: 10.1,
-    widthPct: 17.1,
-    lengthScale: 1.20,
-    pivotXPct: 87.9,
-    pivotYPct: 9.8,
+    rightPct: 2.7,
+    topPct: 10.0,
+    widthPct: 39.3,
+    lengthScale: 1.0,
+    pivotXPct: 54.0,
+    pivotYPct: 24.0,
   },
   angles: {
-    REST: -0.6,
-    START: 14.0,
-    END: 30.9,
+    REST: 0,
+    START: 29.6,
+    END: 52.3,
   },
   tonearmSpeed: {
     playMs: 1800,
@@ -54,7 +54,7 @@ const DEFAULT_CONFIG = {
   },
 };
 
-const STORAGE_KEY = 'vinyl-player-config-v8';
+const STORAGE_KEY = 'vinyl-player-config-v9';
 
 // No need for synthetic sound generators - using real audio files
 
@@ -675,7 +675,7 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
 
   return (
     <div 
-      className="vinyl-player-root"
+      className="vinyl-player-root deck-surface-shadow"
       style={{
         all: 'unset',
         display: 'block',
@@ -701,7 +701,7 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
         aspectRatio: aspectRatio.toString(),
         overflow: 'hidden',
         borderRadius: '1rem',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        boxShadow: 'var(--shadow-deck)',
       }}>
         {/* Main Turntable Base */}
         <div className="vinyl-player-base" style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -790,6 +790,20 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
                 }}
               />
             </div>
+            {/* Static specular sheen across the vinyl (light stays put while record spins) */}
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '50%',
+                background: 'var(--sheen-vinyl)',
+                mixBlendMode: 'screen',
+                opacity: 0.55,
+                pointerEvents: 'none',
+                zIndex: 3,
+              }}
+            />
           </div>
 
           {/* Glow effect when playing */}
@@ -839,6 +853,29 @@ const VinylPlayer = ({ tracks, labelImageUrl = '/images/label-cobnet-strange.png
               }}
             />
           </div>
+
+          {/* Ambient light layered over the whole deck so it matches the room */}
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'var(--light-deck)',
+              mixBlendMode: 'soft-light',
+              pointerEvents: 'none',
+              zIndex: 4,
+            }}
+          />
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'var(--vignette-deck)',
+              pointerEvents: 'none',
+              zIndex: 4,
+            }}
+          />
 
           {/* Calibration Mode Overlay */}
           {calibrationMode && (

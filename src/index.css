@@ -8,41 +8,70 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 210 20% 8%;
-    --foreground: 210 15% 70%;
+    --background: 26 22% 8%;
+    --foreground: 32 18% 78%;
 
-    --card: 210 18% 10%;
-    --card-foreground: 210 15% 70%;
+    --card: 26 20% 11%;
+    --card-foreground: 32 18% 78%;
 
-    --popover: 210 18% 10%;
-    --popover-foreground: 210 15% 70%;
+    --popover: 26 20% 11%;
+    --popover-foreground: 32 18% 78%;
 
-    --primary: 210 30% 45%;
-    --primary-foreground: 210 15% 90%;
+    --primary: 30 55% 46%;
+    --primary-foreground: 32 30% 95%;
 
-    --secondary: 210 20% 15%;
-    --secondary-foreground: 210 15% 70%;
+    --secondary: 26 18% 16%;
+    --secondary-foreground: 32 18% 78%;
 
-    --muted: 210 12% 25%;
-    --muted-foreground: 210 10% 45%;
+    --muted: 28 12% 24%;
+    --muted-foreground: 30 10% 55%;
 
-    --accent: 210 35% 50%;
-    --accent-foreground: 210 15% 90%;
+    --accent: 36 60% 55%;
+    --accent-foreground: 30 30% 12%;
 
-    --destructive: 0 60% 45%;
-    --destructive-foreground: 210 15% 90%;
+    --destructive: 6 60% 45%;
+    --destructive-foreground: 32 30% 95%;
 
-    --border: 210 15% 20%;
-    --input: 210 12% 18%;
-    --ring: 210 30% 45%;
+    --border: 28 16% 21%;
+    --input: 28 14% 18%;
+    --ring: 30 55% 46%;
 
     --radius: 0.75rem;
     
     /* Vinyl player custom tokens */
-    --vinyl-glow: 210 30% 40%;
-    --wood-grain: 210 15% 18%;
-    --metal-shine: 210 10% 60%;
-    --warm-shadow: 210 30% 4%;
+    --vinyl-glow: 34 55% 45%;
+    --wood-grain: 24 40% 22%;
+    --metal-shine: 34 12% 72%;
+    --warm-shadow: 22 40% 4%;
+
+    /* Physical staging: light, sheen and cast shadow */
+    --shadow-deck:
+      0 2px 2px hsl(var(--warm-shadow) / 0.6),
+      0 30px 45px -12px hsl(var(--warm-shadow) / 0.85),
+      0 70px 90px -40px hsl(var(--warm-shadow) / 0.9);
+    --light-deck: radial-gradient(
+      120% 90% at 18% -10%,
+      hsl(38 60% 88% / 0.55) 0%,
+      hsl(38 40% 70% / 0.18) 35%,
+      transparent 70%
+    );
+    --vignette-deck: radial-gradient(
+      130% 110% at 45% 35%,
+      transparent 45%,
+      hsl(var(--warm-shadow) / 0.35) 100%
+    );
+    --sheen-vinyl: radial-gradient(
+      140% 120% at 22% 12%,
+      hsl(38 45% 82% / 0.3) 0%,
+      hsl(34 35% 70% / 0.1) 28%,
+      transparent 58%
+    );
+    --surface-room: radial-gradient(
+      ellipse 120% 90% at 50% -20%,
+      hsl(28 22% 15%) 0%,
+      hsl(26 24% 9%) 45%,
+      hsl(24 26% 5%) 100%
+    );
     
     /* Animations */
     --transition-smooth: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
@@ -66,41 +95,41 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 210 20% 8%;
-    --foreground: 210 15% 70%;
+    --background: 26 22% 8%;
+    --foreground: 32 18% 78%;
 
-    --card: 210 18% 10%;
-    --card-foreground: 210 15% 70%;
+    --card: 26 20% 11%;
+    --card-foreground: 32 18% 78%;
 
-    --popover: 210 18% 10%;
-    --popover-foreground: 210 15% 70%;
+    --popover: 26 20% 11%;
+    --popover-foreground: 32 18% 78%;
 
-    --primary: 210 30% 45%;
-    --primary-foreground: 210 15% 90%;
+    --primary: 30 55% 46%;
+    --primary-foreground: 32 30% 95%;
 
-    --secondary: 210 20% 15%;
-    --secondary-foreground: 210 15% 70%;
+    --secondary: 26 18% 16%;
+    --secondary-foreground: 32 18% 78%;
 
-    --muted: 210 12% 25%;
-    --muted-foreground: 210 10% 45%;
+    --muted: 28 12% 24%;
+    --muted-foreground: 30 10% 55%;
 
-    --accent: 210 35% 50%;
-    --accent-foreground: 210 15% 90%;
+    --accent: 36 60% 55%;
+    --accent-foreground: 30 30% 12%;
 
-    --destructive: 0 60% 45%;
-    --destructive-foreground: 210 15% 90%;
+    --destructive: 6 60% 45%;
+    --destructive-foreground: 32 30% 95%;
 
-    --border: 210 15% 20%;
-    --input: 210 12% 18%;
-    --ring: 210 30% 45%;
-    --sidebar-background: 210 18% 10%;
-    --sidebar-foreground: 210 15% 70%;
-    --sidebar-primary: 210 30% 45%;
-    --sidebar-primary-foreground: 210 15% 90%;
-    --sidebar-accent: 210 20% 15%;
-    --sidebar-accent-foreground: 210 15% 70%;
-    --sidebar-border: 210 15% 20%;
-    --sidebar-ring: 210 30% 45%;
+    --border: 28 16% 21%;
+    --input: 28 14% 18%;
+    --ring: 30 55% 46%;
+    --sidebar-background: 26 20% 11%;
+    --sidebar-foreground: 32 18% 78%;
+    --sidebar-primary: 30 55% 46%;
+    --sidebar-primary-foreground: 32 30% 95%;
+    --sidebar-accent: 26 18% 16%;
+    --sidebar-accent-foreground: 32 18% 78%;
+    --sidebar-border: 28 16% 21%;
+    --sidebar-ring: 30 55% 46%;
   }
 }
 
@@ -116,14 +145,29 @@ All colors MUST be HSL.
 
 @layer utilities {
   .bg-gradient-navy {
-    background: linear-gradient(135deg, hsl(210, 20%, 8%) 0%, hsl(215, 25%, 12%) 100%);
+    background: linear-gradient(135deg, hsl(26, 22%, 8%) 0%, hsl(28, 24%, 13%) 100%);
   }
   
   .bg-gradient-navy-radial {
-    background: radial-gradient(ellipse at top, hsl(215, 25%, 12%) 0%, hsl(210, 18%, 8%) 100%);
+    background: radial-gradient(ellipse at top, hsl(28, 24%, 13%) 0%, hsl(26, 22%, 8%) 100%);
   }
   
   .bg-vignette {
-    background: radial-gradient(ellipse at center, hsl(210, 20%, 10%) 0%, hsl(210, 25%, 6%) 100%);
+    background: var(--surface-room);
+  }
+
+  /* Soft elliptical contact shadow under the deck */
+  .deck-surface-shadow::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -3%;
+    width: 88%;
+    height: 8%;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, hsl(var(--warm-shadow) / 0.75) 0%, transparent 70%);
+    filter: blur(14px);
+    pointer-events: none;
   }
 }
