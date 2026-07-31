@@ -30,7 +30,12 @@ export function useActivePlayerThemeId() {
 /** Resolved theme preset for the active id (falls back to the default theme). */
 export function useActivePlayerTheme() {
   const { data, isLoading } = useActivePlayerThemeId();
-  return { theme: getPlayerTheme(data), isLoading };
+  // ?playerTheme=<id> previews a style without changing the site-wide setting.
+  const preview =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('playerTheme')
+      : null;
+  return { theme: getPlayerTheme(preview ?? data), isLoading };
 }
 
 /** Keeps the active theme in sync across open browsers. */
