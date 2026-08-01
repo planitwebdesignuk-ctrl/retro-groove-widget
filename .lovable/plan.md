@@ -1,43 +1,40 @@
-## Goal
+## The key constraint
 
-Give the admin a "Look & Feel" section where they pick one of four turntable styles. The choice is saved in the backend and applies instantly for every visitor — swapping both the turntable artwork and the surrounding page palette. Playback, controls, and tonearm animation logic stay exactly as they are.
+Cross-project copying only works **inward**: I can't push files from here into [Cobweb Strange](/projects/fc0407b5-4cd3-4b21-9bac-6456f57a86e9). You have to open that project and have its agent pull from this one by typing `@` in the chat and selecting this project.
 
-## The four styles
+## What I found in Cobweb Strange
 
-1. **Vintage Walnut** — the current warm wood hi-fi deck, amber/brass accents, dark brown room.
-2. **Matte Black Studio** — dark grey metal DJ deck, cool grey/white accents, near-black room.
-3. **Cream Retro Suitcase** — 1960s portable player in cream/tan, pastel teal accents, warm light room.
-4. **Brushed Silver Hi-Tech** — silver/glass audiophile deck, cool blue-grey accents, neutral cool room.
+It already has its own `VinylPlayer.tsx` (older version, no `theme` prop), its own backend (albums, band members, store, fundraiser, tracks, auth) and its own admin page. So this is **not** a remix — it's a port of the new realistic player + theme system into an app that already works. Its player is embedded per-album inside `AlbumGrid.tsx`, which the port has to respect.
 
-Each style is a complete set: deck image, record image, tonearm image, plus its own colour palette.
+## Plan: build a transfer package in this project
 
-## How it works
+I'd add one file here, `docs/THEME_PORT_TO_COBWEB.md`, written as a set of instructions for the *other* project's agent. It would contain:
 
-A theme is a bundled preset in code containing:
-- its three images (deck / record / tonearm)
-- the geometry calibration for those images (platter position and size, tonearm pivot and rest/start/end angles) — every artwork needs its own numbers, so each theme carries them
-- its palette values (background, card, accent, text) and the deck lighting/shadow values
+1. **File manifest** — exactly which files to copy from this project via `@Retro Groove Widget`:
+   - `src/config/playerThemes.ts` (theme presets, geometry, tokens)
+   - `src/hooks/usePlayerTheme.ts` (read / realtime / admin write)
+   - `src/components/admin/PlayerThemePicker.tsx`
+   - `src/components/VinylPlayer.tsx` (the theme-aware version)
+   - all 16 theme assets under `public/images/themes/<theme>/` (deck, record, tonearm, thumb x4)
+2. **The one database change** — the `player_settings` table (single row, `active_theme`), with grants, RLS (public read, admin write) and realtime enabled. Written as ready-to-run SQL so their agent applies it as a migration.
+3. **Integration edits for their codebase specifically**, not generic advice:
+   - `AlbumGrid.tsx` passes `theme={theme}` into each `VinylPlayer`
+   - the page that hosts the grid calls `useActivePlayerTheme()` + `usePlayerThemeRealtime()`
+   - mount `PlayerThemePicker` as a "Look & Feel" card in their existing admin page
+   - merge the `--knob-*` / `--sheen-vinyl` / `--light-deck` / `--vignette-deck` / `--surface-room` tokens into their `index.css`, and the knob variants into their `button.tsx`
+4. **Conflict warnings** — their `VinylPlayer` may have local tweaks worth diffing before overwrite; theme tokens overwrite `:root` colours at runtime, so their site palette will follow the selected turntable style (with a note on how to scope that to just the player if they'd rather keep their own site colours).
+5. **Verification checklist** — `?playerTheme=<id>` preview URLs, admin switch pushing live to other tabs, tonearm landing correctly on each deck.
 
-The player reads the active theme name from the database, then draws with that theme's images, calibration, and palette. The existing calibration/dev-tuning keys keep working, scoped per theme so tuning one style never disturbs another.
+## Then, in Cobweb Strange
 
-## Admin section
-
-A new "Look & Feel" card on the admin page:
-- Four selectable tiles, each showing a small preview thumbnail of that deck, its name and a one-line description
-- The active one is visibly marked; clicking a tile saves it and shows a confirmation toast
-- A note that the change is live for all visitors immediately
-
-## Player page
-
-- Loads the active theme on mount; falls back to Vintage Walnut if nothing is set
-- Subscribes to theme changes the same way the record label already does, so an admin switching styles updates open browsers without a refresh
+You open that project and say: *"Follow docs/THEME_PORT_TO_COBWEB.md from @Retro Groove Widget and port the turntable theme system into this app."* Its agent can read that file and every asset it names directly.
 
 ## Technical notes
 
-- New table `player_settings`: a single-row settings table with an `active_theme` text column, readable by everyone, writable by admins only (matching the existing `label_images` policy shape, with the required grants). Seeded with `vintage_walnut`.
-- New `src/config/playerThemes.ts` holding the four presets (assets, calibration, CSS variable values). This is the single source of truth for both the player and the admin previews.
-- Palette applied by writing the theme's HSL values onto the existing semantic tokens (`--background`, `--card`, `--accent`, deck shadow/light/sheen tokens) at runtime — no hardcoded colour classes in components.
-- New assets generated into `public/images/themes/<theme>/` (deck, record, tonearm) plus a small thumbnail per theme for the admin tiles. The current walnut images move under `vintage_walnut/`.
-- New hooks `usePlayerTheme()` (read + realtime) and `useSetPlayerTheme()` (admin write) alongside the existing label hooks.
-- `VinylPlayer.tsx` changes are limited to sourcing images/calibration/palette from the active theme; the animation state machine, audio logic, and control layout are untouched.
-- Each new deck needs a calibration pass (platter centre, tonearm pivot, rest/start/end angles verified visually against the artwork) before it ships.
+- Nothing changes functionally in this project — the package is documentation plus the exact SQL and file list.
+- I'll optionally also refresh the stale `VINYLPLAYER_INSTALLATION_GUIDE.md` header so it stops claiming only 3 asset files and 3 tables, since it predates the theme system.
+- Assets total 16 PNG/JPGs; `copy_project_asset` handles them one at a time, so the manifest lists explicit paths to avoid guesswork.
+
+## One open decision
+
+Whether the selected theme should recolour Cobweb Strange's whole site (as it does here) or only the player area. I'll document both, defaulting to **player-scoped** since that site already has its own established look.

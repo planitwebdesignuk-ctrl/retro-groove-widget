@@ -4,6 +4,15 @@ This guide contains everything you need to add the VinylPlayer component with co
 
 ---
 
+## 🎨 Porting into a project that already exists?
+
+This guide assumes a **remix** (fresh project, backend copied automatically). If you instead want to
+port the player and its **Look & Feel theme system** into an app that already has its own code and
+backend, follow **`docs/THEME_PORT_TO_COBWEB.md`** instead — it covers the `player_settings` table,
+the four theme presets and the exact integration edits.
+
+---
+
 ## ✅ AUTOMATIC SETUP ON REMIX
 
 **Good news!** When you remix this project, the backend is automatically configured with:
@@ -51,6 +60,7 @@ Print this checklist and verify each item:
 
 **Backend Setup (Automatic on Remix):**
 - [ ] ✅ All tables auto-created: `tracks`, `user_roles`, `label_images`
+- [ ] ✅ Theme table auto-created: `player_settings` (stores the site-wide turntable style)
 - [ ] ✅ All storage buckets auto-created: `tracks`, `label-images`
 - [ ] ✅ All RLS policies configured automatically
 - [ ] Disabled email confirmation in backend settings
@@ -62,6 +72,9 @@ Print this checklist and verify each item:
 
 **Code Files (All 10 Required):**
 - [ ] `src/components/VinylPlayer.tsx`
+- [ ] `src/config/playerThemes.ts` ✨ (theme presets + geometry calibration)
+- [ ] `src/hooks/usePlayerTheme.ts` ✨ (active theme, realtime, admin write)
+- [ ] `src/components/admin/PlayerThemePicker.tsx` ✨ (admin Look & Feel card)
 - [ ] `src/hooks/useAuth.ts`
 - [ ] `src/hooks/useUserRole.ts`
 - [ ] `src/hooks/useTracks.ts`
@@ -72,14 +85,14 @@ Print this checklist and verify each item:
 - [ ] `src/pages/Admin.tsx`
 - [ ] `src/App.tsx` (routes updated)
 
-**Assets (All 7 Required):**
-- [ ] `public/images/turntable-base.png`
-- [ ] `public/images/vinyl-record.png`
-- [ ] `public/images/Tonearm.png`
+**Assets:**
 - [ ] `public/images/label-blank-template.png` ✨ (DEFAULT - auto-set as active)
 - [ ] `public/images/record-label.png`
 - [ ] `public/audio/needle-drop.wav`
 - [ ] `public/audio/needle-stuck.wav`
+- [ ] `public/images/themes/<theme>/{deck.png,record.png,tonearm.png,thumb.jpg}` for all four
+      themes: `vintage_walnut`, `matte_black`, `cream_retro`, `brushed_silver` (16 files)
+- [ ] Legacy, no longer used by the player: `turntable-base.png`, `vinyl-record.png`, `Tonearm.png`
 
 **Final Verification:**
 - [ ] Homepage loads without errors
@@ -87,6 +100,7 @@ Print this checklist and verify each item:
 - [ ] Can access admin dashboard after login
 - [ ] Can upload MP3 files
 - [ ] Player displays and plays tracks
+- [ ] Switching style in **Look & Feel** updates the player for all visitors
 
 ---
 
